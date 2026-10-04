@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monitoreo técnico · Numi Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link rel="icon" type="image/png" href="img/logo-numi.png">
+  <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+  <div class="app">
+    <!-- ===== Barra lateral ===== -->
+    <aside class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="sidebar" aria-label="Menú principal">
+      <div class="sidebar-inner">
+        <div class="d-flex align-items-center justify-content-between">
+          <a href="inicio.html" class="brand">
+            <img src="img/logo-numi.png" alt="Numi" class="brand-logo">
+            <span><span class="brand-name d-block">Numi</span><span class="brand-sub">Panel administrativo</span></span>
+          </a>
+          <button type="button" class="btn-close d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Cerrar menú"></button>
+        </div>
+        <p class="sidebar-label">Administración</p>
+        <nav class="nav flex-column sidebar-nav">
+          <a class="nav-link" href="inicio.html"><i class="bi bi-house-door"></i> Inicio</a>
+          <a class="nav-link" href="actividades.html"><i class="bi bi-puzzle"></i> Actividades</a>
+          <a class="nav-link" href="recursos.html"><i class="bi bi-images"></i> Recursos</a>
+          <a class="nav-link" href="instituciones.html"><i class="bi bi-building"></i> Instituciones</a>
+          <a class="nav-link" href="usuarios.html"><i class="bi bi-people"></i> Usuarios</a>
+          <a class="nav-link active" href="monitoreo.html"><i class="bi bi-activity"></i> Monitoreo técnico</a>
+        </nav>
+        <div class="sidebar-footer sidebar-nav">
+          <a class="nav-link" href="index.html"><i class="bi bi-box-arrow-left"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ===== Contenido ===== -->
+    <div class="app-main">
+      <header class="topbar">
+        <button class="btn btn-light d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Abrir menú"><i class="bi bi-list"></i></button>
+        <a href="inicio.html" class="btn-back"><i class="bi bi-arrow-left"></i> Volver</a>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="inicio.html">Inicio</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Monitoreo técnico</li>
+          </ol>
+        </nav>
+        <div class="topbar-actions align-items-center">
+          <span class="small text-secondary d-none d-md-inline"><i class="bi bi-arrow-repeat me-1"></i>Actualizado hace 3 minutos</span>
+          <button type="button" class="btn btn-primary btn-sm" data-toast="Generando informe… aparecerá en Informes recientes."><i class="bi bi-download me-1"></i> Descargar informe</button>
+        </div>
+      </header>
+
+      <main class="app-content">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Monitoreo técnico</h1>
+            <p class="page-subtitle">Estado de los servicios y de los equipos de los estudiantes.</p>
+          </div>
+        </div>
+
+        <!-- Estado de servicios -->
+        <div class="row g-3 mb-4">
+          <div class="col-sm-6 col-xl-3">
+            <div class="card p-3 h-100">
+              <div class="small text-secondary mb-2"><i class="bi bi-database me-1"></i> Firestore</div>
+              <div class="service-status text-success"><span class="pulse bg-success"></span> Operativo</div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-xl-3">
+            <div class="card p-3 h-100 border-danger-subtle">
+              <div class="small text-secondary mb-2"><i class="bi bi-robot me-1"></i> RAG API</div>
+              <div class="service-status text-danger"><span class="pulse bg-danger"></span> Sin respuesta</div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-xl-3">
+            <div class="card p-3 h-100">
+              <div class="small text-secondary mb-2"><i class="bi bi-cloud-slash me-1"></i> Sin sincronizar</div>
+              <div class="stat-value text-warning-emphasis">61</div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-xl-3">
+            <div class="card p-3 h-100">
+              <div class="small text-secondary mb-2"><i class="bi bi-bug me-1"></i> Errores 24 h</div>
+              <div class="stat-value">17</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+          <!-- Informes recientes -->
+          <div class="col-lg-7">
+            <div class="card h-100">
+              <div class="card-header">
+                <h2 class="card-title">Informes recientes</h2>
+                <p class="small text-secondary mb-0">Genera uno nuevo con el botón Descargar informe.</p>
+              </div>
+              <div class="report-item">
+                <span class="thumb-sm"><i class="bi bi-filetype-csv"></i></span>
+                <div class="flex-grow-1"><div class="fw-semibold">Sincronización · julio 2026</div><div class="cell-sub">CSV · 84 KB</div></div>
+                <a href="#" class="btn btn-sm btn-light" aria-label="Descargar"><i class="bi bi-download"></i></a>
+              </div>
+              <div class="report-item">
+                <span class="thumb-sm"><i class="bi bi-filetype-pdf"></i></span>
+                <div class="flex-grow-1"><div class="fw-semibold">Cobertura institucional · 2026-1</div><div class="cell-sub">PDF · 1.2 MB</div></div>
+                <a href="#" class="btn btn-sm btn-light" aria-label="Descargar"><i class="bi bi-download"></i></a>
+              </div>
+              <div class="report-item">
+                <span class="thumb-sm"><i class="bi bi-filetype-csv"></i></span>
+                <div class="flex-grow-1"><div class="fw-semibold">Uso por grado · junio 2026</div><div class="cell-sub">CSV · 61 KB</div></div>
+                <a href="#" class="btn btn-sm btn-light" aria-label="Descargar"><i class="bi bi-download"></i></a>
+              </div>
+              <div class="card-footer bg-transparent small text-secondary">Son 742 equipos con datos sincronizados.</div>
+            </div>
+          </div>
+
+          <!-- Versiones de la app -->
+          <div class="col-lg-5">
+            <div class="card h-100">
+              <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                <div>
+                  <h2 class="card-title">Versiones de la app en uso</h2>
+                  <p class="small text-secondary mb-0">Consulta qué versión de Numi tiene cada equipo.</p>
+                </div>
+                <button class="btn btn-sm btn-soft text-nowrap" type="button" data-bs-toggle="collapse" data-bs-target="#versiones" aria-expanded="false" aria-controls="versiones" id="btnVersiones">Ver versiones</button>
+              </div>
+              <div class="collapse" id="versiones">
+                <div class="card-body">
+                  <div class="coverage-row">
+                    <div class="d-flex justify-content-between small mb-1"><span class="fw-semibold">v1.4.0</span><span class="fw-bold">549</span></div>
+                    <div class="progress"><div class="progress-bar" style="width: 74%"></div></div>
+                  </div>
+                  <div class="coverage-row">
+                    <div class="d-flex justify-content-between small mb-1"><span class="fw-semibold">v1.3.2</span><span class="fw-bold">142</span></div>
+                    <div class="progress"><div class="progress-bar" style="width: 19%"></div></div>
+                  </div>
+                  <div class="coverage-row">
+                    <div class="d-flex justify-content-between small mb-1"><span class="fw-semibold">v1.1.0</span><span class="fw-bold">51</span></div>
+                    <div class="progress"><div class="progress-bar bg-warning" style="width: 7%"></div></div>
+                  </div>
+                  <div class="alert alert-warning small mt-3 mb-0">51 equipos con versión desactualizada no reciben actividades nuevas.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Registro de eventos -->
+        <div class="card">
+          <div class="card-header"><h2 class="card-title">Registro de eventos</h2></div>
+          <div class="event-item">
+            <span class="status status-danger">Crítico</span>
+            <span>Timeout del RAG API tras 30 s</span>
+            <span class="event-time">Hoy, 11:40</span>
+          </div>
+          <div class="event-item">
+            <span class="status status-warning">Alerta</span>
+            <span>Descarga de Gemma 2B fallida · 9 equipos</span>
+            <span class="event-time">Hoy, 10:02</span>
+          </div>
+          <div class="event-item">
+            <span class="status status-warning">Alerta</span>
+            <span>Conflicto de progreso resuelto por mayor avance</span>
+            <span class="event-time">Hoy, 08:31</span>
+          </div>
+          <div class="event-item">
+            <span class="status status-info">Info</span>
+            <span>Paquete de conocimiento v2.1 publicado</span>
+            <span class="event-time">Hoy, 07:15</span>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastArea"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recursos · Numi Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link rel="icon" type="image/png" href="img/logo-numi.png">
+  <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+  <div class="app">
+    <!-- ===== Barra lateral ===== -->
+    <aside class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="sidebar" aria-label="Menú principal">
+      <div class="sidebar-inner">
+        <div class="d-flex align-items-center justify-content-between">
+          <a href="inicio.html" class="brand">
+            <img src="img/logo-numi.png" alt="Numi" class="brand-logo">
+            <span><span class="brand-name d-block">Numi</span><span class="brand-sub">Panel administrativo</span></span>
+          </a>
+          <button type="button" class="btn-close d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Cerrar menú"></button>
+        </div>
+        <p class="sidebar-label">Administración</p>
+        <nav class="nav flex-column sidebar-nav">
+          <a class="nav-link" href="inicio.html"><i class="bi bi-house-door"></i> Inicio</a>
+          <a class="nav-link" href="actividades.html"><i class="bi bi-puzzle"></i> Actividades</a>
+          <a class="nav-link active" href="recursos.html"><i class="bi bi-images"></i> Recursos</a>
+          <a class="nav-link" href="instituciones.html"><i class="bi bi-building"></i> Instituciones</a>
+          <a class="nav-link" href="usuarios.html"><i class="bi bi-people"></i> Usuarios</a>
+          <a class="nav-link" href="monitoreo.html"><i class="bi bi-activity"></i> Monitoreo técnico</a>
+        </nav>
+        <div class="sidebar-footer sidebar-nav">
+          <a class="nav-link" href="index.html"><i class="bi bi-box-arrow-left"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ===== Contenido ===== -->
+    <div class="app-main">
+      <header class="topbar">
+        <button class="btn btn-light d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Abrir menú"><i class="bi bi-list"></i></button>
+        <a href="inicio.html" class="btn-back"><i class="bi bi-arrow-left"></i> Volver</a>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="inicio.html">Inicio</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Recursos</li>
+          </ol>
+        </nav>
+        <div class="topbar-actions">
+          <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalSubir"><i class="bi bi-folder-plus me-1"></i> Subir carpeta</button>
+        </div>
+      </header>
+
+      <main class="app-content">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Recursos</h1>
+            <p class="page-subtitle">Imágenes y audios disponibles para las actividades.</p>
+          </div>
+        </div>
+
+        <ul class="nav section-tabs" role="tablist">
+          <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabImagenes" type="button" role="tab">Imágenes</button></li>
+          <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAudio" type="button" role="tab">Audio</button></li>
+        </ul>
+
+        <form class="filters">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label" for="buscarRec">Buscar</label>
+              <div class="input-group">
+                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                <input type="search" class="form-control" id="buscarRec" placeholder="Nombre del archivo">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="carpeta">Carpeta</label>
+              <select class="form-select" id="carpeta">
+                <option>Todas las carpetas</option>
+                <option>actividades/ciencias</option>
+                <option>actividades/matematicas</option>
+                <option>actividades/espanol</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="compat">Compatibilidad</label>
+              <select class="form-select" id="compat">
+                <option>Todas</option>
+                <option>Todas las versiones</option>
+                <option>Desde v1.4.0</option>
+              </select>
+            </div>
+          </div>
+        </form>
+
+        <div class="notice">
+          <i class="bi bi-lightbulb"></i>
+          <div>Estos recursos se usan en el constructor de actividades con el botón <strong>Más recursos</strong>.</div>
+        </div>
+
+        <div class="tab-content">
+          <!-- Imágenes -->
+          <div class="tab-pane fade show active" id="tabImagenes" role="tabpanel">
+            <div class="card table-card">
+              <div class="card-header small text-secondary"><i class="bi bi-folder2-open me-1"></i> assets/images/actividades/ciencias</div>
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead><tr><th>Vista</th><th>Recurso</th><th>Tipo</th><th>Compatibilidad</th></tr></thead>
+                  <tbody>
+                    <tr><td><span class="thumb-sm">🐶</span></td><td class="cell-title">perro.png</td><td>Imagen</td><td><span class="status status-success">Todas las versiones</span></td></tr>
+                    <tr><td><span class="thumb-sm">🌳</span></td><td class="cell-title">arbol.png</td><td>Imagen</td><td><span class="status status-success">Todas las versiones</span></td></tr>
+                    <tr><td><span class="thumb-sm">🪨</span></td><td class="cell-title">piedra.png</td><td>Imagen</td><td><span class="status status-success">Todas las versiones</span></td></tr>
+                    <tr><td><span class="thumb-sm">🪑</span></td><td class="cell-title">silla.png</td><td>Imagen</td><td><span class="status status-success">Todas las versiones</span></td></tr>
+                    <tr><td><span class="thumb-sm">🐋</span></td><td class="cell-title">ballena.png</td><td>Imagen</td><td><span class="status status-warning">Desde v1.4.0</span></td></tr>
+                    <tr><td><span class="thumb-sm">🌼</span></td><td class="cell-title">flor.png</td><td>Imagen</td><td><span class="status status-success">Todas las versiones</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="table-footer">
+                <span>6 de 312 recursos</span>
+                <ul class="pagination pagination-sm">
+                  <li class="page-item disabled"><a class="page-link" href="#">Anterior</a></li>
+                  <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                  <li class="page-item"><a class="page-link" href="#">2</a></li>
+                  <li class="page-item"><a class="page-link" href="#">Siguiente</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Audio -->
+          <div class="tab-pane fade" id="tabAudio" role="tabpanel">
+            <div class="card table-card">
+              <div class="card-header small text-secondary"><i class="bi bi-folder2-open me-1"></i> assets/audio/actividades/ciencias</div>
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead><tr><th>Vista</th><th>Recurso</th><th>Tipo</th><th>Compatibilidad</th></tr></thead>
+                  <tbody>
+                    <tr><td><span class="thumb-sm"><i class="bi bi-music-note-beamed"></i></span></td><td class="cell-title">inst_vivo.mp3</td><td>Audio</td><td><span class="status status-success">Todas las versiones</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="table-footer">
+                <span>1 de 312 recursos</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal: subir carpeta -->
+  <div class="modal fade" id="modalSubir" tabindex="-1" aria-labelledby="modalSubirTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title fs-5" id="modalSubirTitulo">Subir carpeta</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="dropzone">
+            <i class="bi bi-cloud-arrow-up d-block mb-2"></i>
+            <p class="fw-semibold mb-1 text-dark">Arrastra aquí una carpeta con imágenes o audios</p>
+            <p class="small mb-3">PNG, JPG o MP3</p>
+            <label class="btn btn-soft btn-sm">Seleccionar carpeta <input type="file" class="d-none" multiple></label>
+          </div>
+          <p class="small text-secondary mt-3 mb-0">Demostración: en el prototipo los archivos no se cargan ni se procesan.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal" data-toast="Carpeta enviada. Los recursos aparecerán cuando termine la carga.">Subir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastArea"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

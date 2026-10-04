@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Usuarios · Numi Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link rel="icon" type="image/png" href="img/logo-numi.png">
+  <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+  <div class="app">
+    <!-- ===== Barra lateral ===== -->
+    <aside class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="sidebar" aria-label="Menú principal">
+      <div class="sidebar-inner">
+        <div class="d-flex align-items-center justify-content-between">
+          <a href="inicio.html" class="brand">
+            <img src="img/logo-numi.png" alt="Numi" class="brand-logo">
+            <span><span class="brand-name d-block">Numi</span><span class="brand-sub">Panel administrativo</span></span>
+          </a>
+          <button type="button" class="btn-close d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Cerrar menú"></button>
+        </div>
+        <p class="sidebar-label">Administración</p>
+        <nav class="nav flex-column sidebar-nav">
+          <a class="nav-link" href="inicio.html"><i class="bi bi-house-door"></i> Inicio</a>
+          <a class="nav-link" href="actividades.html"><i class="bi bi-puzzle"></i> Actividades</a>
+          <a class="nav-link" href="recursos.html"><i class="bi bi-images"></i> Recursos</a>
+          <a class="nav-link" href="instituciones.html"><i class="bi bi-building"></i> Instituciones</a>
+          <a class="nav-link active" href="usuarios.html"><i class="bi bi-people"></i> Usuarios</a>
+          <a class="nav-link" href="monitoreo.html"><i class="bi bi-activity"></i> Monitoreo técnico</a>
+        </nav>
+        <div class="sidebar-footer sidebar-nav">
+          <a class="nav-link" href="index.html"><i class="bi bi-box-arrow-left"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ===== Contenido ===== -->
+    <div class="app-main">
+      <header class="topbar">
+        <button class="btn btn-light d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Abrir menú"><i class="bi bi-list"></i></button>
+        <a href="inicio.html" class="btn-back"><i class="bi bi-arrow-left"></i> Volver</a>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="inicio.html">Inicio</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Usuarios</li>
+          </ol>
+        </nav>
+        <div class="topbar-actions">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modalImportar"><i class="bi bi-upload me-1"></i> Importar usuarios</button>
+          <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCrear"><i class="bi bi-person-plus me-1"></i> Crear usuario</button>
+        </div>
+      </header>
+
+      <main class="app-content">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Usuarios y roles</h1>
+            <p class="page-subtitle">Docentes y administradores con acceso a Numi.</p>
+          </div>
+        </div>
+
+        <div id="flash"></div>
+
+        <div class="alert alert-warning d-flex align-items-center gap-3 flex-wrap" role="alert">
+          <i class="bi bi-hourglass-split fs-5"></i>
+          <span class="flex-grow-1"><strong>4 docentes</strong> esperan aprobación para entrar a su grupo.</span>
+          <button type="button" class="btn btn-sm btn-warning" data-filter-shortcut="Pendiente">Revisar</button>
+        </div>
+
+        <form class="filters" data-table-filter="#tablaUsuarios">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-6 col-xl-3">
+              <label class="form-label" for="buscarUsr">Buscar</label>
+              <div class="input-group">
+                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                <input type="search" class="form-control" id="buscarUsr" placeholder="Nombre o correo" data-filter="text">
+              </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+              <label class="form-label" for="rolUsr">Rol</label>
+              <select class="form-select" id="rolUsr" data-filter="rol">
+                <option value="">Todos los roles</option>
+                <option>Docente</option>
+                <option>Administrador</option>
+              </select>
+            </div>
+            <div class="col-md-6 col-xl-3">
+              <label class="form-label" for="instUsr">Institución</label>
+              <select class="form-select" id="instUsr" data-filter="institucion">
+                <option value="">Todas las instituciones</option>
+                <option>IE Rural La Aldea</option>
+                <option>IE Palmitas</option>
+                <option>IE San Antonio de Prado</option>
+              </select>
+            </div>
+            <div class="col-md-6 col-xl-3">
+              <label class="form-label" for="estadoUsr">Estado</label>
+              <select class="form-select" id="estadoUsr" data-filter="estado">
+                <option value="">Todos los estados</option>
+                <option>Activo</option>
+                <option>Pendiente</option>
+                <option>Inactivo</option>
+              </select>
+            </div>
+          </div>
+        </form>
+
+        <div class="card table-card">
+          <div class="table-responsive">
+            <table class="table table-hover" id="tablaUsuarios">
+              <thead>
+                <tr><th>Usuario</th><th>Rol</th><th>Institución</th><th>Último acceso</th><th>Estado</th><th class="text-end">Acción</th></tr>
+              </thead>
+              <tbody>
+                <tr data-user="lmunoz" data-rol="Docente" data-institucion="IE Rural La Aldea" data-estado="Activo">
+                  <td><div class="d-flex align-items-center gap-2"><span class="avatar">LM</span><div><div class="cell-title" data-field="nombre">Luisa Muñoz</div><div class="cell-sub">lmunoz@ie.edu.co</div></div></div></td>
+                  <td>Docente</td><td>IE Rural La Aldea</td><td class="text-nowrap">Hoy, 09:14</td>
+                  <td data-field="estado"><span class="status status-success">Activo</span></td>
+                  <td class="text-end"><button type="button" class="btn btn-sm btn-soft" data-edit-user>Editar</button></td>
+                </tr>
+                <tr data-user="agaviria" data-rol="Docente" data-institucion="IE Palmitas" data-estado="Pendiente">
+                  <td><div class="d-flex align-items-center gap-2"><span class="avatar">AG</span><div><div class="cell-title" data-field="nombre">Andrés Gaviria</div><div class="cell-sub">agaviria@ie.edu.co</div></div></div></td>
+                  <td>Docente</td><td>IE Palmitas</td><td class="text-nowrap">Nunca</td>
+                  <td data-field="estado"><span class="status status-warning">Pendiente</span></td>
+                  <td class="text-end"><button type="button" class="btn btn-sm btn-soft" data-edit-user>Editar</button></td>
+                </tr>
+                <tr data-user="cvelez" data-rol="Administrador" data-institucion="Todas" data-estado="Activo">
+                  <td><div class="d-flex align-items-center gap-2"><span class="avatar">CV</span><div><div class="cell-title" data-field="nombre">Carolina Vélez</div><div class="cell-sub">cvelez@medellin.gov.co</div></div></div></td>
+                  <td>Administrador</td><td>Todas</td><td class="text-nowrap">Ayer, 16:02</td>
+                  <td data-field="estado"><span class="status status-success">Activo</span></td>
+                  <td class="text-end"><button type="button" class="btn btn-sm btn-soft" data-edit-user>Editar</button></td>
+                </tr>
+                <tr data-user="jquintero" data-rol="Docente" data-institucion="IE San Antonio de Prado" data-estado="Inactivo">
+                  <td><div class="d-flex align-items-center gap-2"><span class="avatar">JQ</span><div><div class="cell-title" data-field="nombre">Jhon Quintero</div><div class="cell-sub">jquintero@ie.edu.co</div></div></div></td>
+                  <td>Docente</td><td>IE San Antonio de Prado</td><td class="text-nowrap">12 jun 2026</td>
+                  <td data-field="estado"><span class="status status-muted">Inactivo</span></td>
+                  <td class="text-end"><button type="button" class="btn btn-sm btn-soft" data-edit-user>Editar</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span><span data-visible>4</span> de 39 usuarios</span>
+            <ul class="pagination pagination-sm">
+              <li class="page-item disabled"><a class="page-link" href="#">Anterior</a></li>
+              <li class="page-item active"><a class="page-link" href="#">1</a></li>
+              <li class="page-item"><a class="page-link" href="#">2</a></li>
+              <li class="page-item"><a class="page-link" href="#">Siguiente</a></li>
+            </ul>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal: editar usuario (lo completa app.js) -->
+  <div class="modal fade" id="modalEditar" tabindex="-1" aria-labelledby="modalEditarTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form class="modal-content" id="formEditar">
+        <div class="modal-header">
+          <div>
+            <p class="small text-secondary mb-0">Editar usuario</p>
+            <h2 class="modal-title fs-5" id="modalEditarTitulo">Luisa Muñoz</h2>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label class="form-label" for="edNombre">Nombre</label>
+              <input type="text" class="form-control" id="edNombre">
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label" for="edApellido">Apellido</label>
+              <input type="text" class="form-control" id="edApellido">
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="edCorreo">Correo institucional</label>
+              <input type="email" class="form-control" id="edCorreo">
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label" for="edRol">Rol</label>
+              <select class="form-select" id="edRol">
+                <option>Docente</option>
+                <option>Administrador</option>
+              </select>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label" for="edInst">Institución</label>
+              <select class="form-select" id="edInst">
+                <option>IE Rural La Aldea</option>
+                <option>IE Palmitas</option>
+                <option>IE Santa Elena</option>
+                <option>IE San Antonio de Prado</option>
+                <option>Todas</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer justify-content-between">
+          <button type="button" class="btn btn-outline-danger" id="btnToggleEstado">Desactivar usuario</button>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: confirmar activar / desactivar -->
+  <div class="modal fade" id="modalConfirmarEstado" tabindex="-1" aria-labelledby="modalConfirmarTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-body text-center p-4">
+          <div class="danger-icon" id="confirmIcon"><i class="bi bi-exclamation-lg"></i></div>
+          <h2 class="h5 fw-bold" id="modalConfirmarTitulo">¿Desactivar a Luisa Muñoz?</h2>
+          <p class="text-secondary mb-0" id="confirmTexto">No podrá iniciar sesión en Numi. El registro no se elimina: queda en la lista de usuarios con estado Inactivo.</p>
+        </div>
+        <div class="modal-footer justify-content-center border-0 pt-0 pb-4">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="btnConfirmarEstado">Desactivar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: crear usuario -->
+  <div class="modal fade" id="modalCrear" tabindex="-1" aria-labelledby="modalCrearTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form class="modal-content" id="formCrear">
+        <div class="modal-header">
+          <h2 class="modal-title fs-5" id="modalCrearTitulo">Crear usuario</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label class="form-label" for="crNombre">Nombre</label>
+              <input type="text" class="form-control" id="crNombre" required>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label" for="crApellido">Apellido</label>
+              <input type="text" class="form-control" id="crApellido" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="crCorreo">Correo institucional</label>
+              <input type="email" class="form-control" id="crCorreo" placeholder="nombre@ie.edu.co" required>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label" for="crRol">Rol</label>
+              <select class="form-select" id="crRol"><option>Docente</option><option>Administrador</option></select>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label" for="crInst">Institución</label>
+              <select class="form-select" id="crInst">
+                <option>IE Rural La Aldea</option>
+                <option>IE Palmitas</option>
+                <option>IE Santa Elena</option>
+                <option>IE San Antonio de Prado</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Crear cuenta</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: importar usuarios -->
+  <div class="modal fade" id="modalImportar" tabindex="-1" aria-labelledby="modalImportarTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h2 class="modal-title fs-5" id="modalImportarTitulo">Importar usuarios</h2>
+            <p class="small text-secondary mb-0">Crea varias cuentas a la vez desde un archivo CSV o JSON.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <label class="form-label" for="impRol">Rol</label>
+              <select class="form-select" id="impRol"><option>Docente</option><option>Administrador</option></select>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label" for="impInst">Institución</label>
+              <select class="form-select" id="impInst"><option>IE Rural La Aldea</option><option>IE Palmitas</option><option>IE Santa Elena</option><option>IE San Antonio de Prado</option></select>
+            </div>
+          </div>
+          <div class="dropzone">
+            <i class="bi bi-file-earmark-arrow-up d-block mb-2"></i>
+            <p class="fw-semibold mb-2 text-dark">Arrastra aquí tu archivo .csv o .json</p>
+            <label class="btn btn-soft btn-sm">Seleccionar archivo <input type="file" class="d-none" accept=".csv,.json"></label>
+          </div>
+          <p class="small fw-semibold mt-3 mb-1">Columnas del archivo, en este orden</p>
+          <div class="d-flex gap-2 flex-wrap">
+            <code class="bg-light px-2 py-1 rounded">nombre</code>
+            <code class="bg-light px-2 py-1 rounded">apellido</code>
+            <code class="bg-light px-2 py-1 rounded">correo_institucional</code>
+          </div>
+          <p class="small text-secondary mt-3 mb-0">Demostración: en el prototipo el archivo no se carga ni se procesa.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal" data-toast="Archivo recibido. Las cuentas se crearán al procesarlo.">Importar usuarios</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastArea"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

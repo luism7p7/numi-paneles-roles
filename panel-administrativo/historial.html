@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Historial · Numi Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link rel="icon" type="image/png" href="img/logo-numi.png">
+  <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+  <div class="app">
+    <!-- ===== Barra lateral ===== -->
+    <aside class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="sidebar" aria-label="Menú principal">
+      <div class="sidebar-inner">
+        <div class="d-flex align-items-center justify-content-between">
+          <a href="inicio.html" class="brand">
+            <img src="img/logo-numi.png" alt="Numi" class="brand-logo">
+            <span><span class="brand-name d-block">Numi</span><span class="brand-sub">Panel administrativo</span></span>
+          </a>
+          <button type="button" class="btn-close d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Cerrar menú"></button>
+        </div>
+        <p class="sidebar-label">Administración</p>
+        <nav class="nav flex-column sidebar-nav">
+          <a class="nav-link" href="inicio.html"><i class="bi bi-house-door"></i> Inicio</a>
+          <a class="nav-link active" href="actividades.html"><i class="bi bi-puzzle"></i> Actividades</a>
+          <a class="nav-link" href="recursos.html"><i class="bi bi-images"></i> Recursos</a>
+          <a class="nav-link" href="instituciones.html"><i class="bi bi-building"></i> Instituciones</a>
+          <a class="nav-link" href="usuarios.html"><i class="bi bi-people"></i> Usuarios</a>
+          <a class="nav-link" href="monitoreo.html"><i class="bi bi-activity"></i> Monitoreo técnico</a>
+        </nav>
+        <div class="sidebar-footer sidebar-nav">
+          <a class="nav-link" href="index.html"><i class="bi bi-box-arrow-left"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ===== Contenido ===== -->
+    <div class="app-main">
+      <header class="topbar">
+        <button class="btn btn-light d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Abrir menú"><i class="bi bi-list"></i></button>
+        <a href="actividades.html" class="btn-back"><i class="bi bi-arrow-left"></i> Volver</a>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="inicio.html">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="actividades.html">Actividades</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Historial</li>
+          </ol>
+        </nav>
+      </header>
+
+      <main class="app-content">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Historial de actividades</h1>
+            <p class="page-subtitle">Cada cambio guardado en el panel queda registrado aquí.</p>
+          </div>
+        </div>
+
+        <form class="filters" data-table-filter="#tablaHistorial">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-6 col-xl-4">
+              <label class="form-label" for="buscarHist">Buscar actividad</label>
+              <div class="input-group">
+                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                <input type="search" class="form-control" id="buscarHist" placeholder="Nombre de la actividad" data-filter="text">
+              </div>
+            </div>
+            <div class="col-md-6 col-xl-4">
+              <label class="form-label" for="tipoCambio">Tipo de cambio</label>
+              <select class="form-select" id="tipoCambio" data-filter="estado">
+                <option value="">Todos los cambios</option>
+                <option>Editada</option>
+                <option>Borrador</option>
+                <option>Desactivada</option>
+                <option>Publicada</option>
+              </select>
+            </div>
+            <div class="col-6 col-xl-2">
+              <label class="form-label" for="desde">Desde</label>
+              <input type="date" class="form-control" id="desde" value="2026-08-01">
+            </div>
+            <div class="col-6 col-xl-2">
+              <label class="form-label" for="hasta">Hasta</label>
+              <input type="date" class="form-control" id="hasta" value="2026-08-29">
+            </div>
+          </div>
+        </form>
+
+        <div class="notice">
+          <i class="bi bi-info-circle"></i>
+          <div>Datos de ejemplo: el historial real se arma con cada cambio guardado en el panel.</div>
+        </div>
+
+        <div class="card table-card">
+          <div class="table-responsive">
+            <table class="table table-hover" id="tablaHistorial">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Actividad</th>
+                  <th>Cambio</th>
+                  <th>Estado</th>
+                  <th>Hecho por</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-estado="Editada">
+                  <td class="text-nowrap">Hoy, 11:52</td>
+                  <td class="cell-title">¿Vivo o no vivo?</td>
+                  <td>piedra.png asignado a “No vivo”</td>
+                  <td><span class="status status-info">Editada</span></td>
+                  <td class="text-nowrap">Carolina Vélez</td>
+                </tr>
+                <tr data-estado="Editada">
+                  <td class="text-nowrap">Hoy, 11:51</td>
+                  <td class="cell-title">¿Vivo o no vivo?</td>
+                  <td>arbol.png retirado</td>
+                  <td><span class="status status-info">Editada</span></td>
+                  <td class="text-nowrap">Carolina Vélez</td>
+                </tr>
+                <tr data-estado="Editada">
+                  <td class="text-nowrap">Hoy, 11:50</td>
+                  <td class="cell-title">¿Vivo o no vivo?</td>
+                  <td>perro.png asignado a “Vivo”</td>
+                  <td><span class="status status-info">Editada</span></td>
+                  <td class="text-nowrap">Carolina Vélez</td>
+                </tr>
+                <tr data-estado="Editada">
+                  <td class="text-nowrap">Hoy, 11:48</td>
+                  <td class="cell-title">¿Vivo o no vivo?</td>
+                  <td>inst_vivo.mp3 agregado</td>
+                  <td><span class="status status-info">Editada</span></td>
+                  <td class="text-nowrap">Carolina Vélez</td>
+                </tr>
+                <tr data-estado="Borrador">
+                  <td class="text-nowrap">Ayer, 16:02</td>
+                  <td class="cell-title">Héroes de la ciudad</td>
+                  <td>Guardada como borrador</td>
+                  <td><span class="status status-warning">Borrador</span></td>
+                  <td class="text-nowrap">Carolina Vélez</td>
+                </tr>
+                <tr data-estado="Desactivada">
+                  <td class="text-nowrap">12 jun 2026</td>
+                  <td class="cell-title">Pasado y presente</td>
+                  <td>Actividad desactivada</td>
+                  <td><span class="status status-muted">Desactivada</span></td>
+                  <td class="text-nowrap">Carolina Vélez</td>
+                </tr>
+                <tr data-estado="Publicada">
+                  <td class="text-nowrap">12 jun 2026</td>
+                  <td class="cell-title">Los números</td>
+                  <td>Actividad publicada</td>
+                  <td><span class="status status-success">Publicada</span></td>
+                  <td class="text-nowrap">Carolina Vélez</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span><span data-visible>7</span> cambios</span>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

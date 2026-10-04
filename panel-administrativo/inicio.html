@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inicio · Numi Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link rel="icon" type="image/png" href="img/logo-numi.png">
+  <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+  <div class="app">
+    <!-- ===== Barra lateral ===== -->
+    <aside class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="sidebar" aria-label="Menú principal">
+      <div class="sidebar-inner">
+        <div class="d-flex align-items-center justify-content-between">
+          <a href="inicio.html" class="brand">
+            <img src="img/logo-numi.png" alt="Numi" class="brand-logo">
+            <span><span class="brand-name d-block">Numi</span><span class="brand-sub">Panel administrativo</span></span>
+          </a>
+          <button type="button" class="btn-close d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Cerrar menú"></button>
+        </div>
+        <p class="sidebar-label">Administración</p>
+        <nav class="nav flex-column sidebar-nav">
+          <a class="nav-link active" href="inicio.html"><i class="bi bi-house-door"></i> Inicio</a>
+          <a class="nav-link" href="actividades.html"><i class="bi bi-puzzle"></i> Actividades</a>
+          <a class="nav-link" href="recursos.html"><i class="bi bi-images"></i> Recursos</a>
+          <a class="nav-link" href="instituciones.html"><i class="bi bi-building"></i> Instituciones</a>
+          <a class="nav-link" href="usuarios.html"><i class="bi bi-people"></i> Usuarios</a>
+          <a class="nav-link" href="monitoreo.html"><i class="bi bi-activity"></i> Monitoreo técnico</a>
+        </nav>
+        <div class="sidebar-footer sidebar-nav">
+          <a class="nav-link" href="index.html"><i class="bi bi-box-arrow-left"></i> Cerrar sesión</a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ===== Contenido ===== -->
+    <div class="app-main">
+      <header class="topbar">
+        <button class="btn btn-light d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Abrir menú"><i class="bi bi-list"></i></button>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb"><li class="breadcrumb-item active" aria-current="page">Inicio</li></ol>
+        </nav>
+        <div class="topbar-actions">
+          <span class="text-secondary small d-flex align-items-center gap-1"><i class="bi bi-clock-history"></i> Datos al 29 ago, 14:20</span>
+        </div>
+      </header>
+
+      <main class="app-content">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Panel administrativo</h1>
+            <p class="page-subtitle">Resumen general de la red de instituciones que usan Numi.</p>
+          </div>
+          <a href="constructor.html" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Nueva actividad</a>
+        </div>
+
+        <!-- Indicadores -->
+        <div class="row g-3 mb-4">
+          <div class="col-6 col-xl-3">
+            <div class="card stat-card">
+              <span class="stat-icon icon-teal"><i class="bi bi-building"></i></span>
+              <div><div class="stat-value">7</div><div class="stat-label">Instituciones</div></div>
+            </div>
+          </div>
+          <div class="col-6 col-xl-3">
+            <div class="card stat-card">
+              <span class="stat-icon icon-sky"><i class="bi bi-person-video3"></i></span>
+              <div><div class="stat-value">38</div><div class="stat-label">Docentes</div></div>
+            </div>
+          </div>
+          <div class="col-6 col-xl-3">
+            <div class="card stat-card">
+              <span class="stat-icon icon-amber"><i class="bi bi-collection"></i></span>
+              <div><div class="stat-value">31</div><div class="stat-label">Grupos</div></div>
+            </div>
+          </div>
+          <div class="col-6 col-xl-3">
+            <div class="card stat-card">
+              <span class="stat-icon icon-emerald"><i class="bi bi-mortarboard"></i></span>
+              <div><div class="stat-value">742</div><div class="stat-label">Estudiantes</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+          <!-- Cobertura -->
+          <div class="col-lg-7">
+            <div class="card h-100">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h2 class="card-title">Cobertura por comuna y corregimiento</h2>
+                <span class="small text-secondary">Estudiantes</span>
+              </div>
+              <div class="card-body p-4">
+                <div class="coverage-row">
+                  <div class="d-flex justify-content-between small mb-1"><span class="fw-semibold">San Cristóbal</span><span class="fw-bold">198</span></div>
+                  <div class="progress" role="progressbar" aria-label="San Cristóbal" aria-valuenow="198" aria-valuemin="0" aria-valuemax="198"><div class="progress-bar" style="width: 100%"></div></div>
+                </div>
+                <div class="coverage-row">
+                  <div class="d-flex justify-content-between small mb-1"><span class="fw-semibold">Santa Elena</span><span class="fw-bold">156</span></div>
+                  <div class="progress" role="progressbar" aria-label="Santa Elena" aria-valuenow="156" aria-valuemin="0" aria-valuemax="198"><div class="progress-bar" style="width: 79%"></div></div>
+                </div>
+                <div class="coverage-row">
+                  <div class="d-flex justify-content-between small mb-1"><span class="fw-semibold">Palmitas</span><span class="fw-bold">122</span></div>
+                  <div class="progress" role="progressbar" aria-label="Palmitas" aria-valuenow="122" aria-valuemin="0" aria-valuemax="198"><div class="progress-bar" style="width: 62%"></div></div>
+                </div>
+                <div class="coverage-row">
+                  <div class="d-flex justify-content-between small mb-1"><span class="fw-semibold">Altavista</span><span class="fw-bold">101</span></div>
+                  <div class="progress" role="progressbar" aria-label="Altavista" aria-valuenow="101" aria-valuemin="0" aria-valuemax="198"><div class="progress-bar" style="width: 51%"></div></div>
+                </div>
+                <div class="coverage-row">
+                  <div class="d-flex justify-content-between small mb-1"><span class="fw-semibold">San Antonio de Prado</span><span class="fw-bold">66</span></div>
+                  <div class="progress" role="progressbar" aria-label="San Antonio de Prado" aria-valuenow="66" aria-valuemin="0" aria-valuemax="198"><div class="progress-bar" style="width: 33%"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Requieren acción -->
+          <div class="col-lg-5">
+            <div class="card h-100">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h2 class="card-title">Requieren acción</h2>
+                <span class="badge rounded-pill text-bg-danger">3</span>
+              </div>
+              <div class="action-item">
+                <span class="action-dot bg-warning"></span>
+                <div class="flex-grow-1">
+                  <div class="fw-semibold">4 docentes pendientes de aprobación</div>
+                  <div class="cell-sub">Esperan entrar a su grupo</div>
+                </div>
+                <a href="usuarios.html" class="btn btn-sm btn-soft">Revisar</a>
+              </div>
+              <div class="action-item">
+                <span class="action-dot bg-warning"></span>
+                <div class="flex-grow-1">
+                  <div class="fw-semibold">61 dispositivos sin sincronizar</div>
+                  <div class="cell-sub">Más de 7 días sin conexión</div>
+                </div>
+                <a href="monitoreo.html" class="btn btn-sm btn-soft">Ver</a>
+              </div>
+              <div class="action-item">
+                <span class="action-dot bg-danger"></span>
+                <div class="flex-grow-1">
+                  <div class="fw-semibold">RAG API sin responder desde las 11:40</div>
+                  <div class="cell-sub">Asistente de IA afectado</div>
+                </div>
+                <span class="status status-danger">Crítico</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Accesos rápidos -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Accesos rápidos</h2>
+            <p class="small text-secondary mb-0">Atajos a lo que hay en cada sección.</p>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-6 col-md-4 col-xl"><a href="constructor.html" class="quick-link"><i class="bi bi-plus-square"></i> Nueva actividad</a></div>
+              <div class="col-6 col-md-4 col-xl"><a href="recursos.html" class="quick-link"><i class="bi bi-cloud-arrow-up"></i> Subir recursos</a></div>
+              <div class="col-6 col-md-4 col-xl"><a href="institucion-nueva.html" class="quick-link"><i class="bi bi-building-add"></i> Crear institución</a></div>
+              <div class="col-6 col-md-6 col-xl"><a href="usuarios.html?crear=1" class="quick-link"><i class="bi bi-person-plus"></i> Crear usuario</a></div>
+              <div class="col-12 col-md-6 col-xl"><a href="monitoreo.html" class="quick-link"><i class="bi bi-activity"></i> Monitoreo técnico</a></div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
