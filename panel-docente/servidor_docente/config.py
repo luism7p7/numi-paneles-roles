@@ -30,3 +30,6 @@ class Config:
     APP_API_URL = os.environ.get("APP_API_URL", "").rstrip("/")
     # Clave que debe enviar el backend de la app para usar /api/app/v1/...
     APP_API_KEY = os.environ.get("APP_API_KEY", "")
+
+    # Imágenes, audios y videos que sube o importa el panel administrativo (se los entrega a la app)
+    CARPETA_UPLOADS = Path(os.environ.get("UPLOADS_DIR") or CARPETA_PANEL.parent / "panel-administrativo" / "uploads")

@@ -4,15 +4,17 @@ Autenticación: cabecera  X-Api-Key: <APP_API_KEY del .env>.
 La clave nunca debe ir dentro de la app del celular; el celular habla con su
 backend y el backend reenvía aquí.
 
-    POST /api/app/v1/unirse       el niño escribe el código del grupo
-    GET  /api/app/v1/actividades  actividades activas para el grupo del niño
-    PUT  /api/app/v1/progreso     sube el progreso (gana el mayor avance, como en la app)
+    POST /api/app/v1/unirse          el niño escribe el código del grupo
+    GET  /api/app/v1/actividades     actividades activas para el grupo del niño (con su contenido)
+    GET  /api/app/v1/recursos/<id>   archivo de una imagen, audio o video
+    PUT  /api/app/v1/progreso        sube el progreso (gana el mayor avance, como en la app)
 """
 
 import hmac
+import json
 from datetime import date, datetime
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, abort, current_app, jsonify, request, send_from_directory
 
 from . import calculos
 from .db import confirmar, consultar, ejecutar
@@ -106,12 +108,33 @@ def actividades():
         if not a["activa"]:
             continue
         recursos = consultar(
-            """SELECT r.nombre, r.tipo, r.carpeta, r.version_minima FROM actividad_recurso ar
-               JOIN recursos r ON r.id = ar.recurso_id WHERE ar.actividad_id = %s""",
+            """SELECT r.id, r.nombre, r.tipo, r.version_minima, r.archivo IS NOT NULL AS descargable
+               FROM actividad_recurso ar JOIN recursos r ON r.id = ar.recurso_id
+               WHERE ar.actividad_id = %s ORDER BY r.id""",
             (a["id"],),
         )
-        lista.append({"id": a["slug"], "nombre": a["nombre"], "materia": a["materia"], "recursos": recursos})
+        lista.append({
+            "id": a["slug"],
+            "nombre": a["nombre"],  # el mismo texto con que la app guarda el progreso
+            "materia": a["materia"],
+            "tipo": a["tipo"],
+            # en_app: ya tiene pantalla propia en la app. Si no, se juega con la plantilla de su tipo
+            "en_app": bool(a["en_app"]),
+            "contenido": json.loads(a["contenido"]) if a["contenido"] else None,
+            # La app vuelve a descargar la actividad solo si cambió esta fecha
+            "actualizada": a["actualizada_en"].isoformat(),
+            "recursos": [r | {"descargable": bool(r["descargable"])} for r in recursos],
+        })
     return jsonify(grado=grupo["grado"], ia_activada=bool(grupo["ia_activada"]), actividades=lista)
+
+
+@bp.get("/recursos/<int:recurso_id>")
+def recurso(recurso_id):
+    """Archivo de un recurso (imagen, audio o video) para que la app lo guarde y lo use sin internet."""
+    fila = consultar("SELECT archivo FROM recursos WHERE id = %s", (recurso_id,), uno=True)
+    if fila is None or not fila["archivo"]:
+        abort(404, "El recurso no existe o no tiene archivo.")
+    return send_from_directory(current_app.config["CARPETA_UPLOADS"], fila["archivo"], max_age=86400)
 
 
 def fecha_iso(valor):

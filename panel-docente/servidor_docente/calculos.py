@@ -62,7 +62,8 @@ def actividades_del_grupo(grupo):
     """
     return consultar(
         """SELECT a.id, a.slug, a.nombre, a.materia, m.nombre_corto AS materia_nombre, m.orden,
-                  a.descripcion, COALESCE(ga.activa, TRUE) AS activa
+                  a.descripcion, a.tipo, a.en_app, a.contenido, a.actualizada_en,
+                  COALESCE(ga.activa, TRUE) AS activa
            FROM actividades a
            JOIN materias m ON m.clave = a.materia
            LEFT JOIN grupo_actividad ga ON ga.actividad_id = a.id AND ga.grupo_id = %s
