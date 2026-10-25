@@ -1,0 +1,7 @@
+Flask==3.1.3
+PyMySQL==1.2.3
+cryptography==50.0.2   # la necesita PyMySQL para el login por defecto de MySQL 8
+python-dotenv==1.2.4
+openpyxl==3.1.5        # reportes en Excel (panel docente)
+fpdf2==2.8.9           # reportes en PDF (panel docente)
+pytest==9.1.1
