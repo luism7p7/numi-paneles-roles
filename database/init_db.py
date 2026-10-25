@@ -131,6 +131,9 @@ ACTIVIDADES = [
     ("escucha-y-elige", "Escucha y elige", "ingles", 5, "Comprensión auditiva", "Retirada de la app.", "Desactivada"),
 ]
 
+# Las que ya tienen pantalla propia programada en la app
+SLUGS_EN_APP = {slug for slug, *_, estado in ACTIVIDADES if estado == "Publicada"}
+
 # (nombre, tipo, carpeta, emoji, versión mínima de la app o None)
 RECURSOS = [
     ("perro.png", "Imagen", "actividades/ciencias", "🐶", None),
@@ -233,9 +236,9 @@ def insertar_actividades(cur, admin_id):
     for i, (slug, nombre, materia, grado, tipo, descripcion, estado) in enumerate(ACTIVIDADES):
         creada = hace(200 - i * 9)
         cur.execute(
-            """INSERT INTO actividades (slug, nombre, materia, grado, tipo, descripcion, estado, creada_en)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-            (slug, nombre, materia, grado, tipo, descripcion, estado, creada),
+            """INSERT INTO actividades (slug, nombre, materia, grado, tipo, descripcion, estado, en_app, creada_en)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (slug, nombre, materia, grado, tipo, descripcion, estado, slug in SLUGS_EN_APP, creada),
         )
         actividad_id = cur.lastrowid
         for recurso in ACTIVIDAD_RECURSOS.get(slug, []):
@@ -391,11 +394,45 @@ def crear_base(nombre, reiniciar=False):
         con.close()
 
 
+def migrar(nombre):
+    """Actualiza una base ya creada a la versión actual de schema.sql sin borrar datos.
+
+    Cada cambio revisa primero si ya se aplicó, así que se puede ejecutar muchas veces.
+    """
+    con = conectar(nombre)
+    aplicados = []
+    try:
+        with con.cursor() as cur:
+            cur.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = %s AND table_name = 'actividades'",
+                (nombre,),
+            )
+            columnas = {fila[0] for fila in cur.fetchall()}
+            if "en_app" not in columnas:
+                cur.execute("ALTER TABLE actividades ADD en_app BOOLEAN NOT NULL DEFAULT FALSE AFTER estado")
+                marcas = ", ".join(["%s"] * len(SLUGS_EN_APP))
+                cur.execute(f"UPDATE actividades SET en_app = TRUE WHERE slug IN ({marcas})", sorted(SLUGS_EN_APP))
+                aplicados.append("actividades.en_app")
+            if "contenido" not in columnas:
+                cur.execute("ALTER TABLE actividades ADD contenido JSON NULL AFTER en_app")
+                aplicados.append("actividades.contenido")
+            cur.execute("ALTER TABLE recursos MODIFY tipo ENUM('Imagen', 'Audio', 'Video') NOT NULL")
+        con.commit()
+    finally:
+        con.close()
+    return aplicados
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Crea la base de datos de los paneles de Numi.")
     parser.add_argument("--reiniciar", action="store_true", help="borra la base si ya existe")
+    parser.add_argument("--migrar", action="store_true", help="actualiza una base existente sin borrar datos")
     args = parser.parse_args()
     nombre = os.environ.get("DB_NAME", "numi")
+    if args.migrar:
+        cambios = migrar(nombre)
+        print(f"Base `{nombre}` actualizada: {', '.join(cambios) if cambios else 'ya estaba al día'}.")
+        raise SystemExit(0)
     try:
         crear_base(nombre, args.reiniciar)
     except RuntimeError as error:

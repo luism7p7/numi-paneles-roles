@@ -423,9 +423,162 @@ async function iniciarDetalle() {
 /* ---------- Constructor de actividades ---------- */
 function miniatura(recurso, clase) {
   const nodo = el(clase === 'thumb' ? 'div' : 'span', clase);
-  if (recurso.tipo === 'Audio') nodo.appendChild(icono('bi-music-note-beamed'));
-  else nodo.textContent = recurso.emoji || '🖼️';
+  if (recurso.tipo === 'Audio') {
+    nodo.appendChild(icono('bi-music-note-beamed'));
+  } else if (recurso.tipo === 'Video') {
+    nodo.appendChild(icono('bi-film'));
+  } else if (recurso.url) {
+    // Imagen real de la app: ocupa el mismo cuadro que tenía el emoji
+    const img = el('img');
+    img.src = recurso.url;
+    img.alt = recurso.nombre;
+    img.loading = 'lazy';
+    Object.assign(img.style, { width: '100%', height: '100%', objectFit: 'contain' });
+    nodo.appendChild(img);
+  } else {
+    nodo.textContent = recurso.emoji || '🖼️';
+  }
   return nodo;
+}
+
+/* ---------- Editor de contenido (plantilla Selección múltiple) ---------- */
+// El HTML del constructor no trae esta tarjeta: se crea aquí con las mismas clases del diseño.
+const TIPOS_CON_PLANTILLA = ['Selección múltiple'];
+const MAX_OPCIONES = 4;
+
+function crearEditorContenido(actividad, catalogo) {
+  const enApp = Boolean(actividad?.en_app);
+  const preguntas = structuredClone(actividad?.contenido?.preguntas || []);
+  const preguntaNueva = () => ({
+    enunciado: '', audio: null,
+    opciones: [{ texto: '', imagen: null, correcta: true }, { texto: '', imagen: null, correcta: false }]
+  });
+
+  const filaPrincipal = $('#resourceGrid').closest('.row');
+  const aviso = el('div', 'notice mt-4');
+  aviso.append(icono('bi-info-circle'), el('div', '', 'La app todavía no tiene plantilla para este tipo de actividad: guárdala como borrador. Por ahora se pueden publicar actividades de tipo Selección múltiple.'));
+  const tarjeta = el('div', 'card mt-4');
+  const cabecera = el('div', 'card-header d-flex justify-content-between align-items-center flex-wrap gap-2');
+  const titulos = el('div');
+  const titulo = el('h2', 'card-title');
+  titulo.append(icono('bi-ui-checks-grid me-2 text-primary'), 'Contenido');
+  titulos.append(titulo, el('span', 'small text-secondary', 'Preguntas que verá el niño. Marca la respuesta correcta de cada una.'));
+  const botonAgregar = el('button', 'btn btn-sm btn-soft');
+  botonAgregar.type = 'button';
+  botonAgregar.append(icono('bi-plus-lg me-1'), 'Agregar pregunta');
+  cabecera.append(titulos, botonAgregar);
+  const lista = el('div', 'card-body p-4');
+  tarjeta.append(cabecera, lista);
+  filaPrincipal.after(aviso, tarjeta);
+
+  // Imágenes y audios de la carpeta de la materia elegida, más los generales de la app
+  const recursosDe = tipo => {
+    const carpeta = `actividades/${CARPETA_MATERIA[$('#actMateria').value]}`;
+    return catalogo.filter(r => r.tipo === tipo && r.compatible && (r.carpeta === carpeta || r.carpeta === 'app/general'));
+  };
+  const selectRecurso = (tipo, elegido, vacio) => {
+    const select = el('select', 'form-select form-select-sm');
+    const opciones = recursosDe(tipo);
+    const actual = catalogo.find(r => r.id === elegido);
+    if (actual && !opciones.includes(actual)) opciones.unshift(actual); // conserva lo ya elegido
+    select.append(el('option', '', vacio), ...opciones.map(r => {
+      const op = el('option', '', r.nombre);
+      op.value = r.id;
+      return op;
+    }));
+    select.value = elegido ?? '';
+    return select;
+  };
+
+  const render = () => {
+    lista.replaceChildren();
+    if (!preguntas.length) lista.appendChild(el('p', 'text-secondary mb-0', 'Todavía no hay preguntas. Usa «Agregar pregunta».'));
+    preguntas.forEach((p, i) => {
+      const bloque = el('div', 'border rounded-4 p-3 mb-3');
+      const encabezado = el('div', 'd-flex justify-content-between align-items-center mb-2');
+      const quitar = el('button', 'btn btn-sm btn-outline-danger', 'Quitar pregunta');
+      quitar.type = 'button';
+      quitar.addEventListener('click', () => { preguntas.splice(i, 1); render(); });
+      encabezado.append(el('span', 'fw-bold', `Pregunta ${i + 1}`), quitar);
+
+      const fila = el('div', 'row g-3 mb-3');
+      const colTexto = el('div', 'col-md-8');
+      const enunciado = el('input', 'form-control');
+      enunciado.maxLength = 200;
+      enunciado.placeholder = 'Ej. ¿Cuál de estos es una fruta?';
+      enunciado.value = p.enunciado;
+      enunciado.addEventListener('input', () => { p.enunciado = enunciado.value; });
+      colTexto.append(el('label', 'form-label', 'Enunciado'), enunciado);
+      const colAudio = el('div', 'col-md-4');
+      const audio = selectRecurso('Audio', p.audio, 'Sin audio');
+      audio.addEventListener('change', () => { p.audio = audio.value ? Number(audio.value) : null; });
+      colAudio.append(el('label', 'form-label', 'Audio de la pregunta (opcional)'), audio);
+      fila.append(colTexto, colAudio);
+
+      const opciones = el('div');
+      p.opciones.forEach((o, j) => {
+        const filaOpcion = el('div', 'd-flex align-items-center gap-2 mb-2');
+        const correcta = el('input', 'form-check-input mt-0');
+        correcta.type = 'radio';
+        correcta.name = `correcta-${i}`;
+        correcta.checked = o.correcta;
+        correcta.title = 'Respuesta correcta';
+        correcta.setAttribute('aria-label', 'Respuesta correcta');
+        correcta.addEventListener('change', () => p.opciones.forEach((otra, k) => { otra.correcta = k === j; }));
+        const texto = el('input', 'form-control form-control-sm');
+        texto.maxLength = 60;
+        texto.placeholder = `Opción ${j + 1}`;
+        texto.value = o.texto;
+        texto.addEventListener('input', () => { o.texto = texto.value; });
+        const vista = el('span', 'thumb-sm flex-shrink-0');
+        const pintarVista = () => {
+          const recurso = catalogo.find(r => r.id === o.imagen);
+          vista.replaceChildren(...(recurso ? miniatura(recurso, 'thumb-sm').childNodes : []));
+        };
+        const imagen = selectRecurso('Imagen', o.imagen, 'Sin imagen');
+        imagen.style.maxWidth = '220px';
+        imagen.addEventListener('change', () => { o.imagen = imagen.value ? Number(imagen.value) : null; pintarVista(); });
+        pintarVista();
+        const borrar = el('button', 'btn btn-sm btn-light');
+        borrar.type = 'button';
+        borrar.setAttribute('aria-label', 'Quitar opción');
+        borrar.appendChild(icono('bi-x-lg'));
+        borrar.disabled = p.opciones.length <= 2;
+        borrar.addEventListener('click', () => {
+          p.opciones.splice(j, 1);
+          if (!p.opciones.some(x => x.correcta)) p.opciones[0].correcta = true;
+          render();
+        });
+        filaOpcion.append(correcta, texto, vista, imagen, borrar);
+        opciones.appendChild(filaOpcion);
+      });
+      if (p.opciones.length < MAX_OPCIONES) {
+        const agregar = el('button', 'btn btn-sm btn-soft mt-1');
+        agregar.type = 'button';
+        agregar.append(icono('bi-plus-lg me-1'), 'Agregar opción');
+        agregar.addEventListener('click', () => { p.opciones.push({ texto: '', imagen: null, correcta: false }); render(); });
+        opciones.appendChild(agregar);
+      }
+      bloque.append(encabezado, fila, el('div', 'small fw-semibold mb-2', 'Opciones (marca la correcta)'), opciones);
+      lista.appendChild(bloque);
+    });
+  };
+
+  const usaPlantilla = () => !enApp && TIPOS_CON_PLANTILLA.includes($('#actTipo').value);
+  const actualizar = () => {
+    tarjeta.classList.toggle('d-none', !usaPlantilla());
+    aviso.classList.toggle('d-none', enApp || usaPlantilla());
+  };
+  botonAgregar.addEventListener('click', () => { preguntas.push(preguntaNueva()); render(); });
+  $('#actTipo').addEventListener('change', actualizar);
+  $('#actMateria').addEventListener('change', render);
+  render();
+  actualizar();
+
+  return {
+    contenido: () => (usaPlantilla() ? { preguntas } : null),
+    cantidad: () => (usaPlantilla() ? preguntas.length : null)
+  };
 }
 
 async function iniciarConstructor() {
@@ -526,6 +679,7 @@ async function iniciarConstructor() {
     render();
   };
   $('#actMateria').addEventListener('change', renderGrid);
+  const editor = crearEditorContenido(actividad, catalogo);
 
   // Modal "Más recursos": todo el catálogo, con búsqueda, tipo y páginas
   catalogo.forEach(r => {
@@ -569,6 +723,17 @@ async function iniciarConstructor() {
     list.replaceChildren();
     selected.forEach(recurso => list.appendChild(el('li', '', `${recurso.nombre} · ${recurso.tipo}`)));
 
+    // Fila "Preguntas" en el resumen (solo para actividades con plantilla)
+    let filaPreguntas = $('#resPreguntas');
+    if (!filaPreguntas) {
+      const estado = $('#resEstado').closest('dd').previousElementSibling;
+      filaPreguntas = el('dd', 'col-7');
+      filaPreguntas.id = 'resPreguntas';
+      estado.before(el('dt', 'col-5', 'Preguntas'), filaPreguntas);
+    }
+    const cantidad = editor.cantidad();
+    filaPreguntas.textContent = cantidad === null ? 'No aplica (pantalla propia de la app)' : plural(cantidad, 'pregunta', 'preguntas');
+
     const [equipos, nuevos] = $$('#modalResumen .bg-light > .d-flex');
     const [eqTitulo, eqValor] = $$('span', equipos);
     eqTitulo.textContent = meta.version_desactualizada ? `Equipos con v${meta.version_desactualizada}` : 'Equipos desactualizados';
@@ -601,7 +766,8 @@ async function iniciarConstructor() {
       grado: $('#actGrado').value,
       tipo: $('#actTipo').value,
       estado,
-      recursos: [...selected.keys()].map(Number)
+      recursos: [...selected.keys()].map(Number),
+      contenido: editor.contenido()
     };
     const { ok, datos } = actividad
       ? await api(`/api/actividades/${encodeURIComponent(actividad.id)}`, { metodo: 'PUT', cuerpo })
@@ -623,10 +789,34 @@ async function iniciarConstructor() {
 }
 
 /* ---------- Recursos ---------- */
+// Pestaña "Videos": copia de la de Audio (mismo estilo), porque el HTML solo trae Imágenes y Audio
+function crearPestanaVideos() {
+  const botonAudio = $('[data-bs-target="#tabAudio"]');
+  const itemVideos = botonAudio.parentElement.cloneNode(true);
+  const botonVideos = $('button', itemVideos);
+  botonVideos.dataset.bsTarget = '#tabVideos';
+  botonVideos.textContent = 'Videos';
+  botonVideos.classList.remove('active');
+  botonAudio.parentElement.after(itemVideos);
+
+  const panelVideos = $('#tabAudio').cloneNode(true);
+  panelVideos.id = 'tabVideos';
+  panelVideos.classList.remove('show', 'active');
+  $('tbody', panelVideos).replaceChildren();
+  $('#tabAudio').after(panelVideos);
+}
+
+// Agrega paginación a las tablas que en el HTML no la traen (Audio y Videos)
+function asegurarPaginacion(panel) {
+  const pie = $('.table-footer', panel);
+  if (!$('.pagination', pie)) pie.appendChild(el('ul', 'pagination pagination-sm'));
+}
+
 function iniciarRecursos() {
   const modal = $('#modalSubir');
   const botonSubir = $('.modal-footer .btn-primary', modal);
   delete botonSubir.dataset.toast; // el mensaje lo da el resultado real de la carga
+  crearPestanaVideos();
   cargarRecursos();
 
   // Subir archivos: botón "Seleccionar carpeta" o arrastrar a la zona
@@ -636,9 +826,9 @@ function iniciarRecursos() {
   let elegidos = [];
   const elegir = archivos => {
     elegidos = Array.from(archivos);
-    ayuda.textContent = elegidos.length ? `${plural(elegidos.length, 'archivo listo', 'archivos listos')} para subir` : 'PNG, JPG o MP3';
+    ayuda.textContent = elegidos.length ? `${plural(elegidos.length, 'archivo listo', 'archivos listos')} para subir` : 'PNG, JPG, MP3 o MP4';
   };
-  input.accept = '.png,.jpg,.jpeg,.mp3';
+  input.accept = '.png,.jpg,.jpeg,.mp3,.mp4';
   input.addEventListener('change', () => elegir(input.files));
   zona.addEventListener('dragover', e => e.preventDefault());
   zona.addEventListener('drop', e => {
@@ -649,7 +839,7 @@ function iniciarRecursos() {
 
   botonSubir.addEventListener('click', async () => {
     if (!elegidos.length) {
-      showToast('Selecciona al menos un archivo PNG, JPG o MP3.');
+      showToast('Selecciona al menos un archivo PNG, JPG, MP3 o MP4.');
       return;
     }
     const formulario = new FormData();
@@ -672,9 +862,19 @@ async function cargarRecursos() {
   if (!ok) return mostrarError(datos);
   const paneles = [
     { tipo: 'Imagen', carpetaBase: 'images', panel: $('#tabImagenes'), estado: { pagina: 1 } },
-    { tipo: 'Audio', carpetaBase: 'audio', panel: $('#tabAudio'), estado: { pagina: 1 } }
+    { tipo: 'Audio', carpetaBase: 'audio', panel: $('#tabAudio'), estado: { pagina: 1 } },
+    { tipo: 'Video', carpetaBase: 'videos', panel: $('#tabVideos'), estado: { pagina: 1 } }
   ];
+
+  // Filtro de carpetas con las carpetas que existen de verdad
+  const selectCarpeta = $('#carpeta');
+  const elegida = selectCarpeta.selectedIndex > 0 ? selectCarpeta.value : '';
+  const carpetas = [...new Set(datos.recursos.map(r => r.carpeta))].sort();
+  llenarSelect(selectCarpeta, carpetas, true);
+  if (carpetas.includes(elegida)) selectCarpeta.value = elegida;
+
   paneles.forEach(p => {
+    asegurarPaginacion(p.panel);
     const tbody = $('tbody', p.panel);
     tbody.replaceChildren();
     datos.recursos.filter(r => r.tipo === p.tipo).forEach(r => {

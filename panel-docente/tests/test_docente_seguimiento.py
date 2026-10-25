@@ -130,3 +130,20 @@ def test_descargar_reporte(docente):
     assert docente.get(base + todo + "&formato=doc").status_code == 400
     al_reves = "/api/reportes/descargar?periodo=s1&desde=2026-06-19&hasta=2026-01-26"
     assert docente.get(al_reves + todo + "&formato=pdf").status_code == 400
+
+
+def test_actividad_del_panel_solo_cuenta_si_es_jugable(docente):
+    """Como "toca las frutas": publicada en el panel pero sin preguntas → el niño no la puede jugar."""
+    from servidor_docente.db import ejecutar
+
+    with docente.application.app_context():
+        ejecutar("""INSERT INTO actividades (slug, nombre, materia, grado, tipo, estado, en_app)
+                    VALUES ('toca-las-frutas', 'toca las frutas', 'ciencias', 2, 'Selección múltiple', 'Publicada', FALSE)""")
+    ids = [a["id"] for a in docente.get("/api/actividades").get_json()]
+    assert "toca-las-frutas" not in ids and len(ids) == 16
+
+    with docente.application.app_context():
+        ejecutar("""UPDATE actividades SET contenido = '{"preguntas": [{"enunciado": "x", "audio": null, "opciones": []}]}'
+                    WHERE slug = 'toca-las-frutas'""")
+    ids = [a["id"] for a in docente.get("/api/actividades").get_json()]
+    assert "toca-las-frutas" in ids and len(ids) == 17

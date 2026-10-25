@@ -1,6 +1,7 @@
 """Recursos: imágenes y audios que usan las actividades."""
 
 import re
+from urllib.parse import quote
 
 from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from werkzeug.utils import secure_filename
@@ -10,7 +11,7 @@ from .utilidades import ErrorDeDatos, version
 
 bp = Blueprint("recursos", __name__)
 
-EXTENSIONES = {".png": "Imagen", ".jpg": "Imagen", ".jpeg": "Imagen", ".mp3": "Audio"}
+EXTENSIONES = {".png": "Imagen", ".jpg": "Imagen", ".jpeg": "Imagen", ".mp3": "Audio", ".mp4": "Video"}
 CARPETA_VALIDA = re.compile(r"^actividades/[a-z0-9_-]{1,40}$")
 
 
@@ -35,7 +36,8 @@ def recurso_json(fila, versiones):
         "tipo": fila["tipo"],
         "carpeta": fila["carpeta"],
         "emoji": fila["emoji"],
-        "url": f"/uploads/{fila['archivo']}" if fila["archivo"] else None,
+        # quote(): las carpetas de la app tienen espacios ("pantalla 1")
+        "url": f"/uploads/{quote(fila['archivo'])}" if fila["archivo"] else None,
         "version_minima": fila["version_minima"],
         "compatibilidad": f"Desde v{fila['version_minima']}" if fila["version_minima"] else "Todas las versiones",
         # Un recurso nuevo no se puede usar mientras haya equipos que no lo muestran
@@ -61,7 +63,7 @@ def listar():
 def subir():
     archivos = request.files.getlist("archivos")
     if not archivos or not any(a.filename for a in archivos):
-        raise ErrorDeDatos("Selecciona al menos un archivo PNG, JPG o MP3.")
+        raise ErrorDeDatos("Selecciona al menos un archivo PNG, JPG, MP3 o MP4.")
     carpeta = request.form.get("carpeta", "").strip() or "actividades/general"
     if not CARPETA_VALIDA.match(carpeta):
         raise ErrorDeDatos("La carpeta no es válida.")
@@ -72,7 +74,7 @@ def subir():
         nombre = secure_filename(archivo.filename or "").lower()
         extension = "." + nombre.rsplit(".", 1)[-1] if "." in nombre else ""
         if extension not in EXTENSIONES:
-            omitidos.append(f"{archivo.filename}: solo se aceptan PNG, JPG o MP3")
+            omitidos.append(f"{archivo.filename}: solo se aceptan PNG, JPG, MP3 o MP4")
             continue
         if consultar("SELECT 1 FROM recursos WHERE carpeta = %s AND nombre = %s", (carpeta, nombre), uno=True):
             omitidos.append(f"{nombre}: ya existe en {carpeta}")
