@@ -1,186 +1,466 @@
 /* =========================================================
    Numi · Panel administrativo
-   Interacciones del prototipo (modales, filtros y mensajes)
+   Interacciones del panel (modales, filtros y mensajes) y
+   conexión con el servidor Flask (API en /api/...)
    ========================================================= */
-
-const ACTIVIDADES = {
-  'los-numeros':         { nombre: 'Los números',         materia: 'Matemáticas',        grado: '1°', tipo: 'Arrastrar y soltar',   estado: 'Publicada',   resuelta: '612' },
-  'arma-la-palabra':     { nombre: 'Arma la palabra',     materia: 'Español',            grado: '3°', tipo: 'Ordenar sílabas',      estado: 'Publicada',   resuelta: '274' },
-  'heroes-de-la-ciudad': { nombre: 'Héroes de la ciudad', materia: 'Sociales',           grado: '4°', tipo: 'Selección múltiple',   estado: 'Borrador',    resuelta: 'Sin uso registrado' },
-  'escucha-y-elige':     { nombre: 'Escucha y elige',     materia: 'Inglés',             grado: '5°', tipo: 'Comprensión auditiva', estado: 'Publicada',   resuelta: '189' },
-  'pasado-y-presente':   { nombre: 'Pasado y presente',   materia: 'Sociales',           grado: '5°', tipo: 'Memory match',         estado: 'Desactivada', resuelta: '43' },
-  'vivo-o-no-vivo':      { nombre: '¿Vivo o no vivo?',    materia: 'Ciencias naturales', grado: '2°', tipo: 'Arrastrar',            estado: 'Publicada',   resuelta: 'Sin uso registrado' }
-};
-
-const INSTITUCIONES = {
-  'la-aldea':    { nombre: 'IE Rural La Aldea',       comuna: 'San Cristóbal',        sedes: 2, estudiantes: 198, grupos: [['Grado 3° — grupo A', 'Luisa Muñoz · 24 estudiantes'], ['Grado 4° — grupo A', 'Andrés Gaviria · 21 estudiantes'], ['Grado 5° — grupo B', null]] },
-  'palmitas':    { nombre: 'IE Palmitas',             comuna: 'Palmitas',             sedes: 1, estudiantes: 122, grupos: [['Grado 2° — grupo A', 'Andrés Gaviria · 18 estudiantes'], ['Grado 4° — grupo A', null]] },
-  'santa-elena': { nombre: 'IE Santa Elena',          comuna: 'Santa Elena',          sedes: 3, estudiantes: 156, grupos: [['Grado 1° — grupo A', 'Marta Ríos · 22 estudiantes'], ['Grado 3° — grupo B', 'Pedro Cano · 20 estudiantes']] },
-  'san-antonio': { nombre: 'IE San Antonio de Prado', comuna: 'San Antonio de Prado', sedes: 2, estudiantes: 66,  grupos: [['Grado 5° — grupo A', 'Jhon Quintero · 19 estudiantes']] }
-};
 
 const STATUS_CLASS = {
   Publicada: 'status-success', Activa: 'status-success', Activo: 'status-success',
   Borrador: 'status-warning', Pendiente: 'status-warning',
-  Desactivada: 'status-muted', Inactivo: 'status-muted', Inactiva: 'status-muted'
+  Desactivada: 'status-muted', Inactivo: 'status-muted', Inactiva: 'status-muted',
+  Editada: 'status-info', Eliminada: 'status-danger',
+  'Crítico': 'status-danger', Alerta: 'status-warning', Info: 'status-info',
+  'Todas las versiones': 'status-success'
 };
 
+// Carpeta de recursos de cada materia (assets/images/actividades/<carpeta>)
+const CARPETA_MATERIA = {
+  'Matemáticas': 'matematicas', 'Español': 'espanol', 'Ciencias naturales': 'ciencias',
+  'Sociales': 'sociales', 'Inglés': 'ingles'
+};
+
+const POR_PAGINA = 10;
+const PAGINA = window.location.pathname.split('/').pop() || 'index.html';
 const params = new URLSearchParams(window.location.search);
 const $ = (sel, ctx = document) => ctx.querySelector(sel);
 const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
 
+/* ---------- Utilidades ---------- */
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function icono(clases) {
+  return el('i', `bi ${clases}`);
+}
+
+function plural(n, singular, varios) {
+  return `${n} ${n === 1 ? singular : varios}`;
+}
+
+function fechaISO(fecha) {
+  const dos = n => String(n).padStart(2, '0');
+  return `${fecha.getFullYear()}-${dos(fecha.getMonth() + 1)}-${dos(fecha.getDate())}`;
+}
+
 /* ---------- Utilidades de mensajes ---------- */
 function showToast(message) {
-  const area = $('#toastArea');
-  if (!area) return;
+  let area = $('#toastArea');
+  if (!area) {
+    area = el('div', 'toast-container position-fixed bottom-0 end-0 p-3');
+    area.id = 'toastArea';
+    document.body.appendChild(area);
+  }
   const toast = document.createElement('div');
   toast.className = 'toast align-items-center text-bg-dark border-0';
   toast.setAttribute('role', 'status');
   toast.innerHTML = '<div class="d-flex"><div class="toast-body"></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button></div>';
   $('.toast-body', toast).textContent = message;
   area.appendChild(toast);
-  new bootstrap.Toast(toast, { delay: 3500 }).show();
+  new bootstrap.Toast(toast, { delay: 4500 }).show();
   toast.addEventListener('hidden.bs.toast', () => toast.remove());
 }
 
 function showFlash(message, type = 'success') {
   const flash = $('#flash');
-  if (!flash) return;
+  if (!flash) {
+    showToast(message);
+    return;
+  }
   const alert = document.createElement('div');
   alert.className = `alert alert-${type} alert-dismissible fade show d-flex align-items-center gap-2`;
   alert.setAttribute('role', 'alert');
-  alert.innerHTML = '<i class="bi bi-check-circle-fill"></i><span></span><button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>';
+  const iconoAlerta = type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill';
+  alert.innerHTML = `<i class="bi ${iconoAlerta}"></i><span></span><button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>`;
   $('span', alert).textContent = message;
   flash.replaceChildren(alert);
 }
 
-function setStatus(el, estado) {
-  el.className = `status ${STATUS_CLASS[estado] || 'status-muted'}`;
-  el.textContent = estado;
+function setStatus(node, estado) {
+  node.className = `status ${STATUS_CLASS[estado] || 'status-muted'}`;
+  node.textContent = estado;
 }
 
-/* ---------- Avisos de demostración ---------- */
-$$('[data-demo]').forEach(link => link.addEventListener('click', e => {
-  e.preventDefault();
-  showToast(link.dataset.demo);
-}));
+function statusSpan(estado) {
+  const span = el('span');
+  setStatus(span, estado);
+  return span;
+}
 
-$$('[data-toast]').forEach(btn => btn.addEventListener('click', () => showToast(btn.dataset.toast)));
+function mostrarError(datos) {
+  showToast(datos.error || 'Ocurrió un error inesperado.');
+}
 
-/* ---------- Inicio de sesión ---------- */
-const loginForm = $('#loginForm');
-if (loginForm) {
-  loginForm.addEventListener('submit', e => {
-    e.preventDefault();
-    const email = $('#email').value.trim().toLowerCase();
-    const error = $('#loginError');
-    if (!loginForm.checkValidity()) {
-      loginForm.classList.add('was-validated');
-      return;
+// Cambia el total en textos como "<span data-visible>4</span> de 7 instituciones"
+function fijarTotal(contador, total, nombre) {
+  if (contador) contador.parentElement.lastChild.textContent = ` de ${total} ${nombre}`;
+}
+
+function filaVacia(tbody, columnas, texto) {
+  const tr = el('tr');
+  tr.dataset.vacia = 'true';
+  const td = el('td', 'text-center text-secondary py-4', texto);
+  td.colSpan = columnas;
+  tr.appendChild(td);
+  tbody.appendChild(tr);
+}
+
+/* ---------- Comunicación con el servidor (Flask) ---------- */
+// Devuelve { ok, status, datos }. Si la sesión terminó (401) vuelve al login.
+async function api(url, { metodo = 'GET', cuerpo, formulario } = {}) {
+  const opciones = { method: metodo, headers: {} };
+  if (formulario) {
+    opciones.body = formulario;
+  } else if (cuerpo !== undefined) {
+    opciones.headers['Content-Type'] = 'application/json';
+    opciones.body = JSON.stringify(cuerpo);
+  }
+  try {
+    const resp = await fetch(url, opciones);
+    const datos = await resp.json().catch(() => ({}));
+    if (resp.status === 401 && !['index.html', 'crear-usuario.html'].includes(PAGINA)) {
+      window.location.href = 'index.html';
     }
-    if (email.endsWith('@medellin.gov.co')) {
-      window.location.href = 'inicio.html';
-    } else {
-      error.classList.remove('d-none');
-    }
-  });
+    return { ok: resp.ok, status: resp.status, datos };
+  } catch {
+    return { ok: false, status: 0, datos: { error: 'No hay conexión con el servidor. Abre el panel desde Flask (python app.py).' } };
+  }
+}
+
+/* ---------- Paginación ---------- */
+function dibujarPaginacion(ul, actual, total, irA) {
+  ul.replaceChildren();
+  const item = (texto, pagina, { activo = false, deshabilitado = false } = {}) => {
+    const li = el('li', `page-item${activo ? ' active' : ''}${deshabilitado ? ' disabled' : ''}`);
+    const a = el('a', 'page-link', texto);
+    a.href = '#';
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      if (!activo && !deshabilitado) irA(pagina);
+    });
+    li.appendChild(a);
+    return li;
+  };
+  ul.appendChild(item('Anterior', actual - 1, { deshabilitado: actual === 1 }));
+  for (let p = 1; p <= total; p++) ul.appendChild(item(String(p), p, { activo: p === actual }));
+  ul.appendChild(item('Siguiente', actual + 1, { deshabilitado: actual === total }));
+}
+
+// Muestra solo la página actual de las filas que cumplen los filtros. Devuelve cuántas quedan visibles.
+function paginar(todas, coinciden, ul, estado, redibujar) {
+  let visibles = coinciden;
+  if (ul) {
+    const paginas = Math.max(1, Math.ceil(coinciden.length / POR_PAGINA));
+    estado.pagina = Math.min(Math.max(1, estado.pagina), paginas);
+    const inicio = (estado.pagina - 1) * POR_PAGINA;
+    visibles = coinciden.slice(inicio, inicio + POR_PAGINA);
+    dibujarPaginacion(ul, estado.pagina, paginas, p => { estado.pagina = p; redibujar(); });
+  }
+  todas.forEach(fila => fila.classList.toggle('d-none', !visibles.includes(fila)));
+  return visibles.length;
 }
 
 /* ---------- Filtros de tablas ---------- */
 $$('[data-table-filter]').forEach(form => {
   const table = $(form.dataset.tableFilter);
   if (!table) return;
-  const controls = $$('[data-filter]', form);
-  const counter = $('[data-visible]', table.closest('.card'));
+  const card = table.closest('.card');
+  const counter = $('[data-visible]', card);
+  const paginacion = $('.pagination', card);
+  const estado = { pagina: 1 };
 
-  const apply = () => {
-    let visible = 0;
-    $$('tbody tr', table).forEach(row => {
-      if (row.dataset.hidden === 'true') return;
-      const ok = controls.every(ctrl => {
-        const value = ctrl.value.trim().toLowerCase();
-        if (!value) return true;
-        if (ctrl.dataset.filter === 'text') return row.textContent.toLowerCase().includes(value);
-        return (row.dataset[ctrl.dataset.filter] || '').toLowerCase() === value;
-      });
-      row.classList.toggle('d-none', !ok);
-      if (ok) visible++;
-    });
-    if (counter) counter.textContent = visible;
+  const cumple = (row, ctrl) => {
+    const value = ctrl.value.trim().toLowerCase();
+    if (!value) return true;
+    const filtro = ctrl.dataset.filter;
+    if (filtro === 'text') return row.textContent.toLowerCase().includes(value);
+    if (filtro === 'desde') return (row.dataset.dia || '') >= value;
+    if (filtro === 'hasta') return (row.dataset.dia || '') <= value;
+    return (row.dataset[filtro] || '').toLowerCase() === value;
   };
 
-  controls.forEach(ctrl => ctrl.addEventListener('input', apply));
+  const apply = (reiniciar = true) => {
+    if (reiniciar) estado.pagina = 1;
+    const filas = $$('tbody tr', table).filter(row => !row.dataset.vacia);
+    const controles = $$('[data-filter]', form);
+    const coinciden = filas.filter(row => controles.every(ctrl => cumple(row, ctrl)));
+    const visibles = paginar(filas, coinciden, paginacion, estado, () => apply(false));
+    if (counter) counter.textContent = visibles;
+  };
+
+  form.addEventListener('input', () => apply());
   form.addEventListener('submit', e => e.preventDefault());
   form.applyFilters = apply;
 });
 
-/* ---------- Actividades: mensajes después de publicar o eliminar ---------- */
-const tablaActividades = $('#tablaActividades');
-if (tablaActividades) {
-  const nuevaFila = $('tr[data-id="vivo-o-no-vivo"]', tablaActividades);
-  nuevaFila.dataset.hidden = 'true';
-  let total = 48;
+const aplicarFiltros = (tabla, reiniciar = true) => {
+  const form = $(`[data-table-filter="${tabla}"]`);
+  if (form) form.applyFilters(reiniciar);
+};
 
-  if (params.get('msg') === 'publicada') {
-    nuevaFila.classList.remove('d-none');
-    delete nuevaFila.dataset.hidden;
-    total = 49;
-    showFlash('Actividad publicada. Llega al celular del niño en su próxima sincronización.');
-  }
-  if (params.get('msg') === 'cambios') {
-    showFlash('Cambios publicados. Llegan al celular del niño en su próxima sincronización.');
-  }
-
-  const eliminada = params.get('eliminada');
-  if (eliminada && ACTIVIDADES[eliminada]) {
-    const fila = $(`tr[data-id="${eliminada}"]`, tablaActividades);
-    if (fila) {
-      fila.classList.add('d-none');
-      fila.dataset.hidden = 'true';
+/* ---------- Inicio de sesión ---------- */
+function iniciarLogin() {
+  const loginForm = $('#loginForm');
+  loginForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const error = $('#loginError');
+    error.classList.add('d-none');
+    if (!loginForm.checkValidity()) {
+      loginForm.classList.add('was-validated');
+      return;
     }
-    total = 47;
-    showFlash(`Se eliminó la actividad «${ACTIVIDADES[eliminada].nombre}».`);
-  }
+    const boton = $('button[type="submit"]', loginForm);
+    boton.disabled = true;
+    const { ok, datos } = await api('/api/login', {
+      metodo: 'POST',
+      cuerpo: { correo: $('#email').value.trim(), password: $('#password').value }
+    });
+    if (ok) {
+      window.location.href = 'inicio.html';
+      return;
+    }
+    $('span', error).textContent = datos.error || 'No se pudo iniciar sesión.';
+    error.classList.remove('d-none');
+    boton.disabled = false;
+  });
 
-  const visibles = $$('tbody tr', tablaActividades).filter(r => !r.classList.contains('d-none')).length;
-  $('[data-visible]').textContent = visibles;
-  $('[data-total]').textContent = total;
-  $('[data-count]').textContent = total;
+  const olvide = $$('a[href="#"]').find(a => a.textContent.includes('Olvidé'));
+  if (olvide) {
+    olvide.addEventListener('click', e => {
+      e.preventDefault();
+      showToast('Pide a otro administrador que active de nuevo tu cuenta: recibirás una contraseña temporal.');
+    });
+  }
+}
+
+/* ---------- Solicitud de cuenta (crear-usuario.html) ---------- */
+function iniciarRegistro() {
+  const form = $('form');
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const boton = $('button[type="submit"]', form);
+    boton.disabled = true;
+    const { ok, datos } = await api('/api/registro', {
+      metodo: 'POST',
+      cuerpo: { nombre: $('#nombre').value, apellido: $('#apellido').value, correo: $('#correo').value }
+    });
+    $('#avisoRegistro')?.remove();
+    const aviso = el('div', `alert alert-${ok ? 'success' : 'danger'} d-flex align-items-center gap-2`);
+    aviso.id = 'avisoRegistro';
+    aviso.setAttribute('role', 'alert');
+    aviso.append(icono(ok ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'), el('span', '', ok ? datos.mensaje : (datos.error || 'No se pudo enviar la solicitud.')));
+    form.before(aviso);
+    if (ok) form.reset();
+    boton.disabled = false;
+  });
+}
+
+/* ---------- Inicio (resumen general) ---------- */
+function itemAccion(punto, titulo, detalle, extra) {
+  const item = el('div', 'action-item');
+  const info = el('div', 'flex-grow-1');
+  info.append(el('div', 'fw-semibold', titulo), el('div', 'cell-sub', detalle));
+  item.append(el('span', `action-dot ${punto}`), info);
+  if (extra) item.appendChild(extra);
+  return item;
+}
+
+function enlaceBoton(texto, href) {
+  const a = el('a', 'btn btn-sm btn-soft', texto);
+  a.href = href;
+  return a;
+}
+
+async function iniciarInicio() {
+  const cuerpoCobertura = $('.coverage-row').parentElement;
+  const cardAcciones = $('.action-item').closest('.card');
+  const { ok, datos } = await api('/api/inicio');
+  if (!ok) return mostrarError(datos);
+
+  const t = datos.totales;
+  const valores = [t.instituciones, t.docentes, t.grupos, t.estudiantes];
+  $$('.stat-card .stat-value').forEach((nodo, i) => { nodo.textContent = valores[i]; });
+  const fecha = $('.topbar-actions span');
+  if (fecha) fecha.lastChild.textContent = ` Datos al ${datos.fecha}`;
+
+  // Cobertura por comuna: la barra más larga es la comuna con más estudiantes
+  const maximo = Math.max(1, ...datos.cobertura.map(c => c.estudiantes));
+  cuerpoCobertura.replaceChildren(...datos.cobertura.map(c => {
+    const fila = el('div', 'coverage-row');
+    const cabecera = el('div', 'd-flex justify-content-between small mb-1');
+    cabecera.append(el('span', 'fw-semibold', c.comuna), el('span', 'fw-bold', c.estudiantes));
+    const barra = el('div', 'progress');
+    barra.setAttribute('role', 'progressbar');
+    barra.setAttribute('aria-label', c.comuna);
+    barra.setAttribute('aria-valuenow', c.estudiantes);
+    barra.setAttribute('aria-valuemin', 0);
+    barra.setAttribute('aria-valuemax', maximo);
+    const relleno = el('div', 'progress-bar');
+    relleno.style.width = `${Math.round(c.estudiantes * 100 / maximo)}%`;
+    barra.appendChild(relleno);
+    fila.append(cabecera, barra);
+    return fila;
+  }));
+
+  // Requieren acción
+  $$('.action-item', cardAcciones).forEach(n => n.remove());
+  const acciones = [];
+  if (t.pendientes) {
+    acciones.push(itemAccion('bg-warning', `${plural(t.pendientes, 'docente pendiente', 'docentes pendientes')} de aprobación`,
+      'Esperan entrar a su grupo', enlaceBoton('Revisar', 'usuarios.html?estado=Pendiente')));
+  }
+  if (datos.sin_sincronizar) {
+    acciones.push(itemAccion('bg-warning', `${plural(datos.sin_sincronizar, 'dispositivo', 'dispositivos')} sin sincronizar`,
+      'Más de 7 días sin conexión', enlaceBoton('Ver', 'monitoreo.html')));
+  }
+  datos.servicios_caidos.forEach(s => {
+    acciones.push(itemAccion('bg-danger', `${s.nombre} sin responder desde las ${s.desde}`,
+      s.clave === 'contenido' ? 'Asistente de IA afectado' : 'La app no puede sincronizar el progreso', statusSpan('Crítico')));
+  });
+  $('.badge', cardAcciones).textContent = acciones.length;
+  if (!acciones.length) acciones.push(itemAccion('bg-success', 'Todo en orden', 'No hay tareas pendientes.'));
+  cardAcciones.append(...acciones);
+}
+
+/* ---------- Actividades ---------- */
+function mensajesDeActividades() {
+  if (params.get('msg') === 'publicada') showFlash('Actividad publicada. Llega al celular del niño en su próxima sincronización.');
+  if (params.get('msg') === 'cambios') showFlash('Cambios publicados. Llegan al celular del niño en su próxima sincronización.');
+  if (params.get('msg') === 'borrador') showFlash('Actividad guardada como borrador.');
+  if (params.get('eliminada')) showFlash(`Se eliminó la actividad «${params.get('eliminada')}».`);
+}
+
+async function iniciarActividades() {
+  const tbody = $('#tablaActividades tbody');
+  tbody.replaceChildren();
+  mensajesDeActividades();
+  const { ok, datos } = await api('/api/actividades');
+  if (!ok) return mostrarError(datos);
+
+  datos.forEach(a => {
+    const tr = el('tr');
+    Object.assign(tr.dataset, { id: a.id, materia: a.materia, grado: a.grado, estado: a.estado });
+    const tdNombre = el('td');
+    tdNombre.append(el('div', 'cell-title', a.nombre), el('div', 'cell-sub', a.tipo));
+    const tdEstado = el('td');
+    tdEstado.appendChild(statusSpan(a.estado));
+    const tdDetalle = el('td', 'text-end');
+    tdDetalle.appendChild(enlaceBoton('Ver detalle', `actividad-detalle.html?id=${encodeURIComponent(a.id)}`));
+    tr.append(tdNombre, el('td', '', a.materia), el('td', '', a.grado), tdEstado, tdDetalle);
+    tbody.appendChild(tr);
+  });
+  if (!datos.length) filaVacia(tbody, 5, 'Todavía no hay actividades. Crea la primera con «Nueva actividad».');
+  $('[data-total]').textContent = datos.length;
+  $('[data-count]').textContent = datos.length;
+  aplicarFiltros('#tablaActividades');
 }
 
 /* ---------- Borradores ---------- */
-if ($('#tablaBorradores') && params.get('msg') === 'borrador') {
-  $('#tablaBorradores tr[data-id="vivo-o-no-vivo"]').classList.remove('d-none');
-  $('#draftCount').textContent = '2 borradores';
-  showFlash('Actividad guardada como borrador.');
+async function iniciarBorradores() {
+  const tbody = $('#tablaBorradores tbody');
+  tbody.replaceChildren();
+  mensajesDeActividades();
+  const { ok, datos } = await api('/api/actividades');
+  if (!ok) return mostrarError(datos);
+
+  const borradores = datos.filter(a => a.estado === 'Borrador');
+  borradores.forEach(a => {
+    const tr = el('tr');
+    tr.dataset.id = a.id;
+    const tdEstado = el('td');
+    tdEstado.appendChild(statusSpan(a.estado));
+    const tdAccion = el('td', 'text-end');
+    tdAccion.appendChild(enlaceBoton('Continuar editando', `constructor.html?id=${encodeURIComponent(a.id)}`));
+    tr.append(el('td', 'cell-title', a.nombre), el('td', '', a.materia), el('td', '', `Grado ${a.grado}`),
+      el('td', '', a.tipo), tdEstado, tdAccion);
+    tbody.appendChild(tr);
+  });
+  if (!borradores.length) filaVacia(tbody, 6, 'No hay borradores guardados.');
+  $('#draftCount').textContent = plural(borradores.length, 'borrador', 'borradores');
+  const badge = $('.section-tabs .badge');
+  if (badge) badge.textContent = datos.length;
 }
 
 /* ---------- Detalle de actividad ---------- */
-if ($('#modalEliminar')) {
-  const id = ACTIVIDADES[params.get('id')] ? params.get('id') : 'los-numeros';
-  const act = ACTIVIDADES[id];
+async function iniciarDetalle() {
+  const id = params.get('id');
+  if (!id) {
+    window.location.href = 'actividades.html';
+    return;
+  }
+  const { ok, datos: act } = await api(`/api/actividades/${encodeURIComponent(id)}`);
+  if (!ok) {
+    window.location.href = 'actividades.html';
+    return;
+  }
   document.title = `${act.nombre} · Numi Admin`;
-  $$('[data-act]').forEach(el => {
-    const key = el.dataset.act;
-    if (key === 'estadoBadge') setStatus(el, act.estado);
-    else el.textContent = act[key];
+  $$('[data-act]').forEach(nodo => {
+    const key = nodo.dataset.act;
+    if (key === 'estadoBadge') setStatus(nodo, act.estado);
+    else nodo.textContent = act[key];
   });
-  $('#btnEditar').href = `constructor.html?id=${id}`;
-  $('#btnConfirmarEliminar').href = `actividades.html?eliminada=${id}`;
+  $('#btnEditar').href = `constructor.html?id=${encodeURIComponent(act.id)}`;
+
+  const confirmar = $('#btnConfirmarEliminar');
+  confirmar.href = '#';
+  confirmar.addEventListener('click', async e => {
+    e.preventDefault();
+    confirmar.classList.add('disabled');
+    const resp = await api(`/api/actividades/${encodeURIComponent(act.id)}`, { metodo: 'DELETE' });
+    if (resp.ok) {
+      window.location.href = `actividades.html?eliminada=${encodeURIComponent(resp.datos.nombre)}`;
+      return;
+    }
+    bootstrap.Modal.getInstance('#modalEliminar')?.hide();
+    mostrarError(resp.datos);
+    confirmar.classList.remove('disabled');
+  });
 }
 
 /* ---------- Constructor de actividades ---------- */
-const resourceGrid = $('#resourceGrid');
-if (resourceGrid) {
-  const id = params.get('id');
-  const act = ACTIVIDADES[id];
-  const esEdicion = act && id !== 'vivo-o-no-vivo';
+function miniatura(recurso, clase) {
+  const nodo = el(clase === 'thumb' ? 'div' : 'span', clase);
+  if (recurso.tipo === 'Audio') nodo.appendChild(icono('bi-music-note-beamed'));
+  else nodo.textContent = recurso.emoji || '🖼️';
+  return nodo;
+}
 
-  if (act) {
-    $('#actNombre').value = act.nombre;
-    $('#actMateria').value = act.materia;
-    $('#actGrado').value = `Grado ${act.grado}`;
-    $('#actTipo').value = act.tipo;
+async function iniciarConstructor() {
+  const id = params.get('id');
+  const grid = $('#resourceGrid');
+  const botonMas = $('.add-tile', grid);
+  const tbodyModal = $('#tablaRecursosModal tbody');
+  const filtroTipoModal = $('#modalRecursos .modal-body select');
+  const contadorModal = $('#modalRecursos .modal-body > .d-flex span');
+  const paginacionModal = $('#modalRecursos .pagination');
+  const estadoModal = { pagina: 1 };
+  const selected = new Map();
+  $$('.resource-tile:not(.add-tile)', grid).forEach(n => n.remove());
+  tbodyModal.replaceChildren();
+
+  const [respRecursos, respActividad] = await Promise.all([
+    api('/api/recursos'),
+    id ? api(`/api/actividades/${encodeURIComponent(id)}`) : Promise.resolve(null)
+  ]);
+  if (!respRecursos.ok) return mostrarError(respRecursos.datos);
+  const catalogo = respRecursos.datos.recursos;
+  const meta = respRecursos.datos;
+  const buscarRecurso = valor => catalogo.find(r => String(r.id) === String(valor));
+
+  let actividad = null;
+  if (respActividad && respActividad.ok) actividad = respActividad.datos;
+  else if (respActividad) mostrarError(respActividad.datos);
+  const esEdicion = Boolean(actividad) && actividad.estado !== 'Borrador';
+
+  if (actividad) {
+    $('#actNombre').value = actividad.nombre;
+    $('#actMateria').value = actividad.materia;
+    $('#actGrado').value = `Grado ${actividad.grado}`;
+    $('#actTipo').value = actividad.tipo;
+    actividad.recursos.forEach(r => selected.set(String(r.id), buscarRecurso(r.id)));
   }
   if (esEdicion) {
     document.title = 'Editar actividad · Numi Admin';
@@ -188,34 +468,97 @@ if (resourceGrid) {
     $('#builderCrumb').innerHTML = '<li class="breadcrumb-item"><a href="actividades.html">Actividades</a></li><li class="breadcrumb-item"></li><li class="breadcrumb-item active" aria-current="page">Editar</li>';
     const crumb = $('#builderCrumb .breadcrumb-item:nth-child(2)');
     const link = document.createElement('a');
-    link.href = `actividad-detalle.html?id=${id}`;
-    link.textContent = act.nombre;
+    link.href = `actividad-detalle.html?id=${encodeURIComponent(actividad.id)}`;
+    link.textContent = actividad.nombre;
     crumb.appendChild(link);
     $('#resEstado').textContent = 'Publicada (reemplaza la versión actual)';
-    $('#btnContinuar').href = 'actividades.html?msg=cambios';
   }
 
   // Selección sincronizada entre la cuadrícula y el modal "Más recursos"
-  const allChecks = () => $$('input[type="checkbox"]', resourceGrid).concat($$('#tablaRecursosModal input[type="checkbox"]'));
-  const selected = new Map();
-
+  const allChecks = () => $$('input[type="checkbox"]', grid).concat($$('input[type="checkbox"]', tbodyModal));
   const render = () => {
     allChecks().forEach(cb => { cb.checked = selected.has(cb.value); });
     const n = selected.size;
     $('#selCount').textContent = `${n} seleccionado${n === 1 ? '' : 's'}`;
   };
-
-  allChecks().forEach(cb => cb.addEventListener('change', () => {
-    if (cb.checked) selected.set(cb.value, cb.dataset.tipo || 'Imagen');
+  const alCambiar = e => {
+    const cb = e.target;
+    if (cb.type !== 'checkbox') return;
+    if (cb.checked) selected.set(cb.value, buscarRecurso(cb.value));
     else selected.delete(cb.value);
     render();
-  }));
+  };
+  grid.addEventListener('change', alCambiar);
+  tbodyModal.addEventListener('change', alCambiar);
 
-  $('#buscarRecursoModal').addEventListener('input', e => {
-    const q = e.target.value.trim().toLowerCase();
-    $$('#tablaRecursosModal tbody tr').forEach(r => r.classList.toggle('d-none', !r.textContent.toLowerCase().includes(q)));
+  // Cuadrícula: imágenes de la carpeta de la materia elegida
+  const tarjeta = recurso => {
+    const label = el('label', `resource-tile${recurso.compatible ? '' : ' is-disabled'}`);
+    if (!recurso.compatible) label.title = `Disponible desde v${recurso.version_minima}`;
+    const input = el('input');
+    input.type = 'checkbox';
+    input.value = recurso.id;
+    input.dataset.tipo = recurso.tipo;
+    input.disabled = !recurso.compatible;
+    const check = el('span', 'check');
+    check.appendChild(icono('bi-check-lg'));
+    label.append(input, check, miniatura(recurso, 'thumb'), el('div', 'name', recurso.nombre));
+    return label;
+  };
+  const cardRecursos = grid.closest('.card');
+  const renderGrid = () => {
+    const carpeta = `actividades/${CARPETA_MATERIA[$('#actMateria').value]}`;
+    $('.card-header code', cardRecursos).textContent = `assets/images/${carpeta}`;
+    $$('.resource-tile:not(.add-tile)', grid).forEach(n => n.remove());
+    const recientes = catalogo.filter(r => r.carpeta === carpeta && r.tipo === 'Imagen').slice(0, 5);
+    recientes.forEach(r => grid.insertBefore(tarjeta(r), botonMas));
+
+    const alerta = $('.alert-warning', cardRecursos);
+    const bloqueados = recientes.filter(r => !r.compatible);
+    alerta.classList.toggle('d-none', !bloqueados.length);
+    if (bloqueados.length) {
+      const b = bloqueados[0];
+      $('div', alerta).replaceChildren(
+        el('strong', '', bloqueados.map(r => r.nombre).join(', ')),
+        document.createTextNode(` está atenuada porque llegó en la v${b.version_minima}. Los ${b.equipos_incompatibles} equipos con versiones anteriores no podrían mostrar esta actividad.`)
+      );
+    }
+    render();
+  };
+  $('#actMateria').addEventListener('change', renderGrid);
+
+  // Modal "Más recursos": todo el catálogo, con búsqueda, tipo y páginas
+  catalogo.forEach(r => {
+    const tr = el('tr', r.compatible ? '' : 'opacity-50');
+    tr.dataset.tipo = r.tipo;
+    const tdCheck = el('td');
+    const input = el('input', 'form-check-input');
+    input.type = 'checkbox';
+    input.value = r.id;
+    input.dataset.tipo = r.tipo;
+    input.disabled = !r.compatible;
+    input.setAttribute('aria-label', r.nombre);
+    tdCheck.appendChild(input);
+    const tdVista = el('td');
+    tdVista.appendChild(miniatura(r, 'thumb-sm'));
+    const tdCompat = el('td');
+    tdCompat.appendChild(el('span', `status ${r.version_minima ? 'status-warning' : 'status-success'}`, r.compatibilidad));
+    tr.append(tdCheck, tdVista, el('td', 'fw-semibold', r.nombre), el('td', '', r.tipo), tdCompat);
+    tbodyModal.appendChild(tr);
   });
+  const filtrarModal = (reiniciar = true) => {
+    if (reiniciar) estadoModal.pagina = 1;
+    const q = $('#buscarRecursoModal').value.trim().toLowerCase();
+    const tipo = ['', 'Imagen', 'Audio'][filtroTipoModal.selectedIndex];
+    const filas = $$('tr', tbodyModal);
+    const coinciden = filas.filter(r => r.textContent.toLowerCase().includes(q) && (!tipo || r.dataset.tipo === tipo));
+    const visibles = paginar(filas, coinciden, paginacionModal, estadoModal, () => filtrarModal(false));
+    contadorModal.textContent = `${visibles} de ${catalogo.length} recursos`;
+  };
+  $('#buscarRecursoModal').addEventListener('input', () => filtrarModal());
+  filtroTipoModal.addEventListener('change', () => filtrarModal());
 
+  // Resumen antes de publicar
   $('#modalResumen').addEventListener('show.bs.modal', () => {
     $('#resNombre').textContent = $('#actNombre').value || 'Sin nombre';
     $('#resMateria').textContent = $('#actMateria').value;
@@ -224,86 +567,305 @@ if (resourceGrid) {
     $('#resCount').textContent = `${selected.size} recurso${selected.size === 1 ? '' : 's'}`;
     const list = $('#resLista');
     list.replaceChildren();
-    selected.forEach((tipo, nombre) => {
-      const li = document.createElement('li');
-      li.textContent = `${nombre} · ${tipo}`;
-      list.appendChild(li);
+    selected.forEach(recurso => list.appendChild(el('li', '', `${recurso.nombre} · ${recurso.tipo}`)));
+
+    const [equipos, nuevos] = $$('#modalResumen .bg-light > .d-flex');
+    const [eqTitulo, eqValor] = $$('span', equipos);
+    eqTitulo.textContent = meta.version_desactualizada ? `Equipos con v${meta.version_desactualizada}` : 'Equipos desactualizados';
+    eqValor.textContent = meta.equipos_desactualizados
+      ? `${meta.equipos_desactualizados} equipos no reciben actividades nuevas`
+      : 'Todos los equipos reciben actividades nuevas';
+    eqValor.className = `${meta.equipos_desactualizados ? 'text-warning-emphasis' : 'text-success'} fw-semibold text-end`;
+
+    const [nvTitulo, nvValor] = $$('span', nuevos);
+    const conVersion = [...selected.values()].filter(r => r.version_minima);
+    nvTitulo.textContent = 'Recursos nuevos';
+    nvValor.textContent = conVersion.length
+      ? `Usa ${conVersion.map(r => r.nombre).join(', ')}: requiere v${conVersion[0].version_minima}`
+      : 'No usa recursos nuevos: compatible con todas las versiones';
+    nvValor.className = `${conVersion.length ? 'text-warning-emphasis' : 'text-success'} fw-semibold text-end`;
+  });
+
+  // Guardar: borrador o publicada
+  const guardar = async (estado, boton) => {
+    const nombre = $('#actNombre').value.trim();
+    if (!nombre) {
+      bootstrap.Modal.getInstance('#modalResumen')?.hide();
+      showToast('Escribe el nombre de la actividad.');
+      return;
+    }
+    boton.classList.add('disabled');
+    const cuerpo = {
+      nombre,
+      materia: $('#actMateria').value,
+      grado: $('#actGrado').value,
+      tipo: $('#actTipo').value,
+      estado,
+      recursos: [...selected.keys()].map(Number)
+    };
+    const { ok, datos } = actividad
+      ? await api(`/api/actividades/${encodeURIComponent(actividad.id)}`, { metodo: 'PUT', cuerpo })
+      : await api('/api/actividades', { metodo: 'POST', cuerpo });
+    if (!ok) {
+      bootstrap.Modal.getInstance('#modalResumen')?.hide();
+      mostrarError(datos);
+      boton.classList.remove('disabled');
+      return;
+    }
+    if (estado === 'Borrador') window.location.href = 'borradores.html?msg=borrador';
+    else window.location.href = `actividades.html?msg=${esEdicion ? 'cambios' : 'publicada'}`;
+  };
+  $('#btnBorrador').addEventListener('click', e => { e.preventDefault(); guardar('Borrador', e.currentTarget); });
+  $('#btnContinuar').addEventListener('click', e => { e.preventDefault(); guardar('Publicada', e.currentTarget); });
+
+  renderGrid();
+  filtrarModal();
+}
+
+/* ---------- Recursos ---------- */
+function iniciarRecursos() {
+  const modal = $('#modalSubir');
+  const botonSubir = $('.modal-footer .btn-primary', modal);
+  delete botonSubir.dataset.toast; // el mensaje lo da el resultado real de la carga
+  cargarRecursos();
+
+  // Subir archivos: botón "Seleccionar carpeta" o arrastrar a la zona
+  const input = $('input[type="file"]', modal);
+  const zona = $('.dropzone', modal);
+  const ayuda = $('p.small', zona);
+  let elegidos = [];
+  const elegir = archivos => {
+    elegidos = Array.from(archivos);
+    ayuda.textContent = elegidos.length ? `${plural(elegidos.length, 'archivo listo', 'archivos listos')} para subir` : 'PNG, JPG o MP3';
+  };
+  input.accept = '.png,.jpg,.jpeg,.mp3';
+  input.addEventListener('change', () => elegir(input.files));
+  zona.addEventListener('dragover', e => e.preventDefault());
+  zona.addEventListener('drop', e => {
+    e.preventDefault();
+    elegir(e.dataTransfer.files);
+  });
+  modal.addEventListener('hidden.bs.modal', () => { input.value = ''; elegir([]); });
+
+  botonSubir.addEventListener('click', async () => {
+    if (!elegidos.length) {
+      showToast('Selecciona al menos un archivo PNG, JPG o MP3.');
+      return;
+    }
+    const formulario = new FormData();
+    elegidos.forEach(archivo => formulario.append('archivos', archivo));
+    const carpeta = $('#carpeta');
+    formulario.append('carpeta', carpeta.selectedIndex > 0 ? carpeta.value : '');
+    showToast('Carpeta enviada. Los recursos aparecerán cuando termine la carga.');
+    const { datos } = await api('/api/recursos', { metodo: 'POST', formulario });
+    if (!datos.subidos) return mostrarError(datos);
+    const partes = [];
+    if (datos.subidos.length) partes.push(`Se ${datos.subidos.length === 1 ? 'subió' : 'subieron'} ${plural(datos.subidos.length, 'recurso', 'recursos')}.`);
+    if (datos.omitidos.length) partes.push(`Omitidos: ${datos.omitidos.join('; ')}.`);
+    showToast(partes.join(' '));
+    cargarRecursos();
+  });
+}
+
+async function cargarRecursos() {
+  const { ok, datos } = await api('/api/recursos');
+  if (!ok) return mostrarError(datos);
+  const paneles = [
+    { tipo: 'Imagen', carpetaBase: 'images', panel: $('#tabImagenes'), estado: { pagina: 1 } },
+    { tipo: 'Audio', carpetaBase: 'audio', panel: $('#tabAudio'), estado: { pagina: 1 } }
+  ];
+  paneles.forEach(p => {
+    const tbody = $('tbody', p.panel);
+    tbody.replaceChildren();
+    datos.recursos.filter(r => r.tipo === p.tipo).forEach(r => {
+      const tr = el('tr');
+      Object.assign(tr.dataset, { carpeta: r.carpeta, compat: r.compatibilidad });
+      const tdVista = el('td');
+      tdVista.appendChild(miniatura(r, 'thumb-sm'));
+      const tdCompat = el('td');
+      tdCompat.appendChild(el('span', `status ${r.version_minima ? 'status-warning' : 'status-success'}`, r.compatibilidad));
+      tr.append(tdVista, el('td', 'cell-title', r.nombre), el('td', '', r.tipo), tdCompat);
+      tbody.appendChild(tr);
     });
   });
 
-  render();
+  const filtrar = (reiniciar = true) => {
+    const q = $('#buscarRec').value.trim().toLowerCase();
+    const carpeta = $('#carpeta').selectedIndex > 0 ? $('#carpeta').value : '';
+    const compat = $('#compat').selectedIndex > 0 ? $('#compat').value : '';
+    paneles.forEach(p => {
+      if (reiniciar) p.estado.pagina = 1;
+      const filas = $$('tbody tr', p.panel);
+      const coinciden = filas.filter(r => r.textContent.toLowerCase().includes(q)
+        && (!carpeta || r.dataset.carpeta === carpeta) && (!compat || r.dataset.compat === compat));
+      const visibles = paginar(filas, coinciden, $('.pagination', p.panel), p.estado, () => filtrar(false));
+      $('.table-footer > span', p.panel).textContent = `${visibles} de ${datos.recursos.length} recursos`;
+      $('.card-header', p.panel).replaceChildren(icono('bi-folder2-open me-1'), ` assets/${p.carpetaBase}/${carpeta || 'actividades'}`);
+    });
+  };
+  const form = $('form.filters');
+  form.oninput = () => filtrar();
+  form.onsubmit = e => e.preventDefault();
+  filtrar();
 }
 
 /* ---------- Instituciones ---------- */
-const modalInstitucion = $('#modalInstitucion');
-if (modalInstitucion) {
-  modalInstitucion.addEventListener('show.bs.modal', e => {
-    const inst = INSTITUCIONES[e.relatedTarget?.dataset.inst];
-    if (!inst) return;
+async function iniciarInstituciones() {
+  const tbody = $('#tablaInstituciones tbody');
+  tbody.replaceChildren();
+  if (params.get('msg') === 'institucion') showFlash('Institución creada. Ya puedes agregar sus grupos.');
+
+  $('#modalInstitucion').addEventListener('show.bs.modal', async e => {
+    const instId = e.relatedTarget?.dataset.inst;
+    if (!instId) return;
+    const list = $('#instGrupos');
+    list.replaceChildren();
+    const { ok, datos: inst } = await api(`/api/instituciones/${instId}`);
+    if (!ok) return mostrarError(inst);
     $('#modalInstitucionTitulo').textContent = inst.nombre;
+    $('#instEstado').textContent = inst.estado;
+    $('#instEstado').className = `fw-bold ${inst.estado === 'Activa' ? 'text-success' : 'text-secondary'}`;
     $('#instComuna').textContent = inst.comuna;
     $('#instSedes').textContent = inst.sedes;
     $('#instEstudiantes').textContent = inst.estudiantes;
-    const list = $('#instGrupos');
-    list.replaceChildren();
-    inst.grupos.forEach(([grupo, docente]) => {
-      const li = document.createElement('li');
-      li.className = 'list-group-item d-flex justify-content-between align-items-center gap-2';
-      const name = document.createElement('span');
-      name.className = 'fw-semibold';
-      name.textContent = grupo;
-      const meta = document.createElement('span');
-      meta.className = docente ? 'small text-secondary text-end' : 'status status-warning';
-      meta.textContent = docente || 'Sin docente asignado';
-      li.append(name, meta);
+    inst.grupos.forEach(({ nombre, docente }) => {
+      const li = el('li', 'list-group-item d-flex justify-content-between align-items-center gap-2');
+      li.append(el('span', 'fw-semibold', nombre), el('span', docente ? 'small text-secondary text-end' : 'status status-warning', docente || 'Sin docente asignado'));
       list.appendChild(li);
     });
+    if (!inst.grupos.length) list.appendChild(el('li', 'list-group-item small text-secondary', 'Todavía no tiene grupos.'));
   });
-  if (params.get('msg') === 'institucion') showFlash('Institución creada. Ya puedes agregar sus grupos.');
+
+  const { ok, datos } = await api('/api/instituciones');
+  if (!ok) return mostrarError(datos);
+  datos.forEach(i => {
+    const tr = el('tr');
+    Object.assign(tr.dataset, { comuna: i.comuna, estado: i.estado });
+    const tdEstado = el('td');
+    tdEstado.appendChild(statusSpan(i.estado));
+    const tdDetalle = el('td', 'text-end');
+    const boton = el('button', 'btn btn-sm btn-soft', 'Ver detalle');
+    boton.type = 'button';
+    Object.assign(boton.dataset, { bsToggle: 'modal', bsTarget: '#modalInstitucion', inst: i.id });
+    tdDetalle.appendChild(boton);
+    tr.append(el('td', 'cell-title', i.nombre), el('td', '', i.comuna), el('td', '', i.sedes), el('td', '', i.estudiantes), tdEstado, tdDetalle);
+    tbody.appendChild(tr);
+  });
+  fijarTotal($('[data-visible]', tbody.closest('.card')), datos.length, 'instituciones');
+  aplicarFiltros('#tablaInstituciones');
 }
 
-const formInstitucion = $('#formInstitucion');
-if (formInstitucion) {
-  formInstitucion.addEventListener('submit', e => {
+function iniciarInstitucionNueva() {
+  const form = $('#formInstitucion');
+  const nombre = $('#instNombre');
+  const avisoNombre = nombre.nextElementSibling;
+  const textoOriginal = avisoNombre.textContent;
+  nombre.addEventListener('input', () => {
+    nombre.setCustomValidity('');
+    avisoNombre.textContent = textoOriginal;
+  });
+  form.addEventListener('submit', async e => {
     e.preventDefault();
-    if (!formInstitucion.checkValidity()) {
-      formInstitucion.classList.add('was-validated');
+    if (!form.checkValidity()) {
+      form.classList.add('was-validated');
       return;
     }
-    window.location.href = 'instituciones.html?msg=institucion';
+    const { ok, status, datos } = await api('/api/instituciones', {
+      metodo: 'POST',
+      cuerpo: { nombre: nombre.value, comuna: $('#instComunaSel').value, sedes: $('#instSedesNum').value, estado: $('#instEstadoSel').value }
+    });
+    if (ok) {
+      window.location.href = 'instituciones.html?msg=institucion';
+      return;
+    }
+    if (status === 409) {
+      nombre.setCustomValidity(datos.error);
+      avisoNombre.textContent = datos.error;
+      form.classList.add('was-validated');
+    } else {
+      mostrarError(datos);
+    }
   });
 }
 
 /* ---------- Usuarios ---------- */
-const tablaUsuarios = $('#tablaUsuarios');
-if (tablaUsuarios) {
+function llenarSelect(select, opciones, conservarPrimera = false) {
+  const primera = conservarPrimera ? [select.options[0]] : [];
+  select.replaceChildren(...primera, ...opciones.map(texto => el('option', '', texto)));
+}
+
+function iniciarUsuarios() {
+  const tablaUsuarios = $('#tablaUsuarios');
+  const tbody = $('tbody', tablaUsuarios);
   const modalEditar = new bootstrap.Modal('#modalEditar');
   const modalConfirmar = new bootstrap.Modal('#modalConfirmarEstado');
-  let filaActual = null;
+  const modalCrearEl = $('#modalCrear');
+  const modalImportar = $('#modalImportar');
+  const botonImportar = $('.modal-footer .btn-primary', modalImportar);
+  delete botonImportar.dataset.toast; // el mensaje lo da el resultado real de la importación
+  let actual = null;
+  tbody.replaceChildren();
 
-  const estadoDe = fila => fila.dataset.estado;
-  const nombreDe = fila => $('[data-field="nombre"]', fila).textContent;
-
-  $$('[data-edit-user]', tablaUsuarios).forEach(btn => btn.addEventListener('click', () => {
-    filaActual = btn.closest('tr');
-    const [nombre, ...resto] = nombreDe(filaActual).split(' ');
-    $('#modalEditarTitulo').textContent = nombreDe(filaActual);
-    $('#edNombre').value = nombre;
-    $('#edApellido').value = resto.join(' ');
-    $('#edCorreo').value = $('.cell-sub', filaActual).textContent;
-    $('#edRol').value = filaActual.dataset.rol;
-    $('#edInst').value = filaActual.dataset.institucion;
-    $('#btnToggleEstado').textContent = estadoDe(filaActual) === 'Inactivo' ? 'Activar usuario' : 'Desactivar usuario';
-    $('#btnToggleEstado').className = estadoDe(filaActual) === 'Inactivo' ? 'btn btn-outline-success' : 'btn btn-outline-danger';
+  const abrirEditar = u => {
+    actual = u;
+    $('#modalEditarTitulo').textContent = u.nombre_completo;
+    $('#edNombre').value = u.nombre;
+    $('#edApellido').value = u.apellido;
+    $('#edCorreo').value = u.correo;
+    $('#edRol').value = u.rol;
+    $('#edInst').value = u.institucion;
+    const activar = u.estado !== 'Activo';
+    $('#btnToggleEstado').textContent = activar ? 'Activar usuario' : 'Desactivar usuario';
+    $('#btnToggleEstado').className = activar ? 'btn btn-outline-success' : 'btn btn-outline-danger';
     modalEditar.show();
-  }));
+  };
+
+  const filaUsuario = u => {
+    const tr = el('tr');
+    Object.assign(tr.dataset, { user: u.id, rol: u.rol, institucion: u.institucion, estado: u.estado });
+    const tdUsuario = el('td');
+    const wrap = el('div', 'd-flex align-items-center gap-2');
+    const textos = el('div');
+    const nombre = el('div', 'cell-title', u.nombre_completo);
+    nombre.dataset.field = 'nombre';
+    textos.append(nombre, el('div', 'cell-sub', u.correo));
+    wrap.append(el('span', 'avatar', u.iniciales), textos);
+    tdUsuario.appendChild(wrap);
+    const tdEstado = el('td');
+    tdEstado.dataset.field = 'estado';
+    tdEstado.appendChild(statusSpan(u.estado));
+    const tdAccion = el('td', 'text-end');
+    const editar = el('button', 'btn btn-sm btn-soft', 'Editar');
+    editar.type = 'button';
+    editar.addEventListener('click', () => abrirEditar(u));
+    tdAccion.appendChild(editar);
+    tr.append(tdUsuario, el('td', '', u.rol), el('td', '', u.institucion), el('td', 'text-nowrap', u.ultimo_acceso), tdEstado, tdAccion);
+    return tr;
+  };
+
+  const cargar = async (reiniciar = true) => {
+    const { ok, datos } = await api('/api/usuarios');
+    if (!ok) return mostrarError(datos);
+    tbody.replaceChildren(...datos.map(filaUsuario));
+    const pendientes = datos.filter(u => u.estado === 'Pendiente').length;
+    const aviso = $('.alert-warning', $('main'));
+    aviso.classList.toggle('d-none', !pendientes);
+    $('strong', aviso).textContent = plural(pendientes, 'docente', 'docentes');
+    $('span.flex-grow-1', aviso).lastChild.textContent = pendientes === 1
+      ? ' espera aprobación para entrar a su grupo.'
+      : ' esperan aprobación para entrar a su grupo.';
+    fijarTotal($('[data-visible]', tablaUsuarios.closest('.card')), datos.length, 'usuarios');
+    aplicarFiltros('#tablaUsuarios', reiniciar);
+  };
 
   $('#btnToggleEstado').addEventListener('click', () => {
-    const activar = estadoDe(filaActual) === 'Inactivo';
-    const nombre = nombreDe(filaActual);
+    const activar = actual.estado !== 'Activo';
+    const nombre = actual.nombre_completo;
     $('#modalConfirmarTitulo').textContent = activar ? `¿Activar a ${nombre}?` : `¿Desactivar a ${nombre}?`;
     $('#confirmTexto').textContent = activar
-      ? 'Podrá volver a iniciar sesión en Numi con su correo institucional.'
+      ? (actual.estado === 'Pendiente'
+        ? 'Se aprueba la cuenta y podrá iniciar sesión en Numi. Si no tiene contraseña, se genera una temporal.'
+        : 'Podrá volver a iniciar sesión en Numi con su correo institucional.')
       : 'No podrá iniciar sesión en Numi. El registro no se elimina: queda en la lista de usuarios con estado Inactivo.';
     $('#btnConfirmarEstado').textContent = activar ? 'Activar' : 'Desactivar';
     $('#btnConfirmarEstado').className = activar ? 'btn btn-success' : 'btn btn-danger';
@@ -312,44 +874,238 @@ if (tablaUsuarios) {
     modalConfirmar.show();
   });
 
-  $('#btnConfirmarEstado').addEventListener('click', () => {
-    const activar = estadoDe(filaActual) === 'Inactivo';
-    const nuevo = activar ? 'Activo' : 'Inactivo';
-    const nombre = nombreDe(filaActual);
-    filaActual.dataset.estado = nuevo;
-    setStatus($('[data-field="estado"] .status', filaActual), nuevo);
+  $('#btnConfirmarEstado').addEventListener('click', async () => {
+    const activar = actual.estado !== 'Activo';
+    const nombre = actual.nombre_completo;
+    const { ok, datos } = await api(`/api/usuarios/${actual.id}/estado`, {
+      metodo: 'PATCH', cuerpo: { estado: activar ? 'Activo' : 'Inactivo' }
+    });
     modalConfirmar.hide();
-    showFlash(activar
-      ? `Se activó la cuenta de ${nombre}. Ya puede volver a iniciar sesión en Numi.`
-      : `Se desactivó la cuenta de ${nombre}. Su registro no se eliminó: sigue en la lista como Inactivo.`);
+    if (!ok) return mostrarError(datos);
+    let mensaje = activar
+      ? `Se activó la cuenta de ${nombre}. Ya puede iniciar sesión en Numi.`
+      : `Se desactivó la cuenta de ${nombre}. Su registro no se eliminó: sigue en la lista como Inactivo.`;
+    if (datos.password_temporal) mensaje += ` Contraseña temporal: ${datos.password_temporal} (compártela solo con esa persona).`;
+    showFlash(mensaje);
+    cargar(false);
   });
 
-  $('#formEditar').addEventListener('submit', e => {
+  $('#formEditar').addEventListener('submit', async e => {
     e.preventDefault();
+    const { ok, datos } = await api(`/api/usuarios/${actual.id}`, {
+      metodo: 'PUT',
+      cuerpo: { nombre: $('#edNombre').value, apellido: $('#edApellido').value, correo: $('#edCorreo').value, rol: $('#edRol').value, institucion: $('#edInst').value }
+    });
+    if (!ok) return mostrarError(datos);
     modalEditar.hide();
-    showFlash(`Se guardaron los cambios de ${nombreDe(filaActual)}.`);
+    showFlash(`Se guardaron los cambios de ${datos.nombre_completo}.`);
+    cargar(false);
   });
 
-  const modalCrearEl = $('#modalCrear');
-  $('#formCrear').addEventListener('submit', e => {
+  $('#formCrear').addEventListener('submit', async e => {
     e.preventDefault();
+    const { ok, datos } = await api('/api/usuarios', {
+      metodo: 'POST',
+      cuerpo: { nombre: $('#crNombre').value, apellido: $('#crApellido').value, correo: $('#crCorreo').value, rol: $('#crRol').value, institucion: $('#crInst').value }
+    });
+    if (!ok) return mostrarError(datos);
     bootstrap.Modal.getOrCreateInstance(modalCrearEl).hide();
-    showFlash(`Se creó la cuenta de ${$('#crNombre').value} ${$('#crApellido').value}. Queda pendiente de aprobación.`);
+    showFlash(`Se creó la cuenta de ${datos.nombre_completo}. Queda pendiente de aprobación.`);
     e.target.reset();
+    cargar();
   });
-  if (params.get('crear') === '1') bootstrap.Modal.getOrCreateInstance(modalCrearEl).show();
+
+  // Importar usuarios desde CSV o JSON
+  const archivoImportar = $('input[type="file"]', modalImportar);
+  const zona = $('.dropzone', modalImportar);
+  const textoZona = $('p', zona);
+  archivoImportar.addEventListener('change', () => {
+    textoZona.textContent = archivoImportar.files[0]?.name || 'Arrastra aquí tu archivo .csv o .json';
+  });
+  zona.addEventListener('dragover', e => e.preventDefault());
+  zona.addEventListener('drop', e => {
+    e.preventDefault();
+    archivoImportar.files = e.dataTransfer.files;
+    archivoImportar.dispatchEvent(new Event('change'));
+  });
+  botonImportar.addEventListener('click', async () => {
+    const archivo = archivoImportar.files[0];
+    if (!archivo) {
+      showToast('Selecciona un archivo .csv o .json.');
+      return;
+    }
+    const formulario = new FormData();
+    formulario.append('archivo', archivo);
+    formulario.append('rol', $('#impRol').value);
+    formulario.append('institucion', $('#impInst').value);
+    showToast('Archivo recibido. Las cuentas se crearán al procesarlo.');
+    const { ok, datos } = await api('/api/usuarios/importar', { metodo: 'POST', formulario });
+    archivoImportar.value = '';
+    archivoImportar.dispatchEvent(new Event('change'));
+    if (!ok) return mostrarError(datos);
+    let mensaje = `Se ${datos.creados === 1 ? 'creó' : 'crearon'} ${plural(datos.creados, 'cuenta', 'cuentas')} pendientes de aprobación.`;
+    if (datos.omitidos.length) mensaje += ` Omitidas: ${datos.omitidos.join('; ')}.`;
+    showFlash(mensaje, datos.creados ? 'success' : 'warning');
+    cargar();
+  });
 
   // Botón "Revisar" del aviso de docentes pendientes
   $('[data-filter-shortcut]').addEventListener('click', e => {
     const select = $('#estadoUsr');
     select.value = e.currentTarget.dataset.filterShortcut;
-    select.dispatchEvent(new Event('input'));
+    select.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  // Instituciones reales en los selectores
+  api('/api/instituciones').then(({ ok, datos }) => {
+    if (!ok) return;
+    const nombres = datos.map(i => i.nombre).sort((a, b) => a.localeCompare(b));
+    llenarSelect($('#instUsr'), [...nombres, 'Todas'], true);
+    llenarSelect($('#edInst'), [...nombres, 'Todas']);
+    llenarSelect($('#crInst'), nombres);
+    llenarSelect($('#impInst'), nombres);
+  });
+
+  if (params.get('crear') === '1') bootstrap.Modal.getOrCreateInstance(modalCrearEl).show();
+  cargar().then(() => {
+    if (params.get('estado') === 'Pendiente') $('[data-filter-shortcut]').click();
   });
 }
 
-/* ---------- Monitoreo: botón de versiones ---------- */
-const versiones = $('#versiones');
-if (versiones) {
+/* ---------- Historial ---------- */
+async function iniciarHistorial() {
+  const tbody = $('#tablaHistorial tbody');
+  tbody.replaceChildren();
+  // Filtros de fecha: por defecto, todo el año en curso
+  const hoy = new Date();
+  $('#desde').dataset.filter = 'desde';
+  $('#hasta').dataset.filter = 'hasta';
+  $('#desde').value = `${hoy.getFullYear()}-01-01`;
+  $('#hasta').value = fechaISO(hoy);
+
+  const { ok, datos } = await api('/api/historial');
+  if (!ok) return mostrarError(datos);
+  datos.forEach(h => {
+    const tr = el('tr');
+    Object.assign(tr.dataset, { estado: h.tipo, dia: h.dia });
+    const tdEstado = el('td');
+    tdEstado.appendChild(statusSpan(h.tipo));
+    tr.append(el('td', 'text-nowrap', h.fecha), el('td', 'cell-title', h.actividad), el('td', '', h.cambio), tdEstado, el('td', 'text-nowrap', h.hecho_por));
+    tbody.appendChild(tr);
+  });
+  aplicarFiltros('#tablaHistorial');
+}
+
+/* ---------- Monitoreo técnico ---------- */
+function iniciarMonitoreo() {
+  const cardInformes = $('.report-item').closest('.card');
+  const cardEventos = $('.event-item').closest('.card');
+  $('.topbar [data-toast]').addEventListener('click', async () => {
+    const { ok, datos } = await api('/api/informes', { metodo: 'POST' });
+    if (!ok) return mostrarError(datos);
+    cargarMonitoreo(cardInformes, cardEventos);
+  });
+  cargarMonitoreo(cardInformes, cardEventos);
+
+  const versiones = $('#versiones');
   versiones.addEventListener('shown.bs.collapse', () => { $('#btnVersiones').textContent = 'Ocultar'; });
   versiones.addEventListener('hidden.bs.collapse', () => { $('#btnVersiones').textContent = 'Ver versiones'; });
 }
+
+async function cargarMonitoreo(cardInformes, cardEventos) {
+  const { ok, datos } = await api('/api/monitoreo');
+  if (!ok) return mostrarError(datos);
+
+  const actualizado = $('.topbar-actions span.small');
+  if (actualizado) actualizado.lastChild.textContent = `Actualizado a las ${datos.actualizado}`;
+
+  // Estado de los servicios del backend de la app
+  const ESTADOS = {
+    true: ['text-success', 'bg-success', 'Operativo'],
+    false: ['text-danger', 'bg-danger', 'Sin respuesta'],
+    null: ['text-secondary', 'bg-secondary', 'Sin configurar']
+  };
+  $$('.service-status').forEach((nodo, i) => {
+    const servicio = datos.servicios[i];
+    if (!servicio) return;
+    const [texto, punto, etiqueta] = ESTADOS[servicio.operativo];
+    nodo.className = `service-status ${texto}`;
+    nodo.replaceChildren(el('span', `pulse ${punto}`), ` ${etiqueta}`);
+    nodo.closest('.card').classList.toggle('border-danger-subtle', servicio.operativo === false);
+  });
+  const [sinSync, errores] = $$('.stat-value');
+  sinSync.textContent = datos.sin_sincronizar;
+  errores.textContent = datos.errores_24h;
+
+  // Informes recientes
+  $$('.report-item', cardInformes).forEach(n => n.remove());
+  const pie = $('.card-footer', cardInformes);
+  datos.informes.forEach(inf => {
+    const item = el('div', 'report-item');
+    const vista = el('span', 'thumb-sm');
+    vista.appendChild(icono(inf.formato === 'PDF' ? 'bi-filetype-pdf' : 'bi-filetype-csv'));
+    const info = el('div', 'flex-grow-1');
+    info.append(el('div', 'fw-semibold', inf.titulo), el('div', 'cell-sub', `${inf.formato} · ${inf.tamano}`));
+    const descargar = el('a', 'btn btn-sm btn-light');
+    descargar.href = `/api/informes/${inf.id}/descargar`;
+    descargar.setAttribute('aria-label', 'Descargar');
+    descargar.appendChild(icono('bi-download'));
+    item.append(vista, info, descargar);
+    pie.before(item);
+  });
+  pie.textContent = `Son ${datos.equipos} equipos con datos sincronizados.`;
+
+  // Versiones de la app en uso
+  const filas = datos.versiones.map(v => {
+    const fila = el('div', 'coverage-row');
+    const cabecera = el('div', 'd-flex justify-content-between small mb-1');
+    cabecera.append(el('span', 'fw-semibold', `v${v.version}`), el('span', 'fw-bold', v.equipos));
+    const barra = el('div', 'progress');
+    const relleno = el('div', `progress-bar${v.desactualizada ? ' bg-warning' : ''}`);
+    relleno.style.width = `${v.porcentaje}%`;
+    barra.appendChild(relleno);
+    fila.append(cabecera, barra);
+    return fila;
+  });
+  if (datos.desactualizados.equipos) {
+    filas.push(el('div', 'alert alert-warning small mt-3 mb-0',
+      `${datos.desactualizados.equipos} equipos con versión desactualizada no reciben actividades nuevas.`));
+  }
+  $('#versiones .card-body').replaceChildren(...filas);
+
+  // Registro de eventos
+  $$('.event-item', cardEventos).forEach(n => n.remove());
+  datos.eventos.forEach(ev => {
+    const item = el('div', 'event-item');
+    item.append(statusSpan(ev.nivel), el('span', '', ev.mensaje), el('span', 'event-time', ev.fecha));
+    cardEventos.appendChild(item);
+  });
+  if (!datos.eventos.length) cardEventos.appendChild(el('div', 'event-item text-secondary', 'Sin eventos registrados.'));
+}
+
+/* ---------- Arranque según la página ---------- */
+const INICIALIZADORES = {
+  'index.html': iniciarLogin,
+  'crear-usuario.html': iniciarRegistro,
+  'inicio.html': iniciarInicio,
+  'actividades.html': iniciarActividades,
+  'borradores.html': iniciarBorradores,
+  'actividad-detalle.html': iniciarDetalle,
+  'constructor.html': iniciarConstructor,
+  'recursos.html': iniciarRecursos,
+  'instituciones.html': iniciarInstituciones,
+  'institucion-nueva.html': iniciarInstitucionNueva,
+  'usuarios.html': iniciarUsuarios,
+  'historial.html': iniciarHistorial,
+  'monitoreo.html': iniciarMonitoreo
+};
+INICIALIZADORES[PAGINA]?.();
+
+/* ---------- Avisos de demostración ---------- */
+// Van al final: algunas páginas cambian sus avisos por el resultado real de la acción.
+$$('[data-demo]').forEach(link => link.addEventListener('click', e => {
+  e.preventDefault();
+  showToast(link.dataset.demo);
+}));
+
+$$('[data-toast]').forEach(btn => btn.addEventListener('click', () => showToast(btn.dataset.toast)));
