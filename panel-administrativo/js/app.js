@@ -428,12 +428,15 @@ function miniatura(recurso, clase) {
   } else if (recurso.tipo === 'Video') {
     nodo.appendChild(icono('bi-film'));
   } else if (recurso.url) {
-    // Imagen real de la app: ocupa el mismo cuadro que tenía el emoji
+    // Imagen real de la app: cabe dentro del mismo cuadro que tenía el emoji
+    // (.thumb mide 64px de alto y .thumb-sm 40px; sin este límite la imagen se sale)
+    const alto = clase === 'thumb' ? '64px' : '40px';
     const img = el('img');
     img.src = recurso.url;
     img.alt = recurso.nombre;
     img.loading = 'lazy';
-    Object.assign(img.style, { width: '100%', height: '100%', objectFit: 'contain' });
+    Object.assign(img.style, { maxWidth: '100%', maxHeight: alto, objectFit: 'contain' });
+    nodo.style.overflow = 'hidden';
     nodo.appendChild(img);
   } else {
     nodo.textContent = recurso.emoji || '🖼️';

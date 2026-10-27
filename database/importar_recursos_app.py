@@ -11,7 +11,9 @@ Uso, desde la raíz del proyecto:
 """
 
 import argparse
+import json
 import os
+import re
 import shutil
 from pathlib import Path
 
@@ -30,6 +32,40 @@ MATERIAS = {
     "sociales": "actividades/sociales",
     "ingles": "actividades/ingles",
 }
+
+
+# Capturas de pantalla de la app (diseños de referencia), no imágenes para armar actividades:
+# "ciencias naturales p1.png", "juego 1.1 español.png", "pantallas guia/...", "Mockup final.PNG"
+CAPTURAS = re.compile(r"ciencias naturales p\d+|juego \d+\.\d+|pantallas guia/|mockup", re.IGNORECASE)
+
+
+def es_captura(relativa):
+    return bool(CAPTURAS.search(relativa))
+
+
+def quitar_capturas(cur, uploads):
+    """Borra de Recursos (y del disco) las capturas ya importadas que ninguna actividad usa."""
+    cur.execute("SELECT id, archivo FROM recursos WHERE archivo LIKE 'app/%%'")
+    capturas = {id_: archivo for id_, archivo in cur.fetchall() if es_captura(archivo)}
+    if not capturas:
+        return 0
+    cur.execute("SELECT contenido FROM actividades WHERE contenido IS NOT NULL")
+    usados = set()
+    for (contenido,) in cur.fetchall():
+        for p in json.loads(contenido)["preguntas"]:
+            usados |= {p.get("audio")} | {o.get("imagen") for o in p["opciones"]}
+    cur.execute("SELECT DISTINCT recurso_id FROM actividad_recurso")
+    usados |= {fila[0] for fila in cur.fetchall()}
+
+    borrados = 0
+    for id_, archivo in capturas.items():
+        if id_ in usados:
+            print(f"  Se conserva {archivo}: una actividad lo usa.")
+            continue
+        cur.execute("DELETE FROM recursos WHERE id = %s", (id_,))
+        (uploads / archivo).unlink(missing_ok=True)
+        borrados += 1
+    return borrados
 
 
 def clasificar(relativa):
@@ -51,12 +87,16 @@ def importar(cur, assets, uploads, quitar_ejemplos=True):
         # Los recursos de ejemplo no tienen archivo; sus vínculos con actividades se borran en cascada
         borrados = cur.execute("DELETE FROM recursos WHERE archivo IS NULL")
 
+    capturas = quitar_capturas(cur, uploads)
+
     nuevos = existentes = 0
     for ruta in sorted(assets.rglob("*")):
         tipo = TIPOS.get(ruta.suffix.lower())
         if tipo is None or not ruta.is_file():
             continue
         relativa = ruta.relative_to(assets).as_posix()
+        if es_captura(relativa):
+            continue
         carpeta, nombre = clasificar(relativa)
         archivo = f"app/{relativa}"
         destino = uploads / archivo
@@ -72,7 +112,7 @@ def importar(cur, assets, uploads, quitar_ejemplos=True):
             (nombre[:120], tipo, carpeta, archivo),
         )
         nuevos += 1
-    return {"nuevos": nuevos, "existentes": existentes, "ejemplos_borrados": borrados}
+    return {"nuevos": nuevos, "existentes": existentes, "ejemplos_borrados": borrados, "capturas_quitadas": capturas}
 
 
 if __name__ == "__main__":
@@ -92,4 +132,4 @@ if __name__ == "__main__":
     finally:
         con.close()
     print(f"Recursos nuevos: {resultado['nuevos']} · ya estaban: {resultado['existentes']} · "
-          f"ejemplos borrados: {resultado['ejemplos_borrados']}")
+          f"ejemplos borrados: {resultado['ejemplos_borrados']} · capturas quitadas: {resultado['capturas_quitadas']}")
