@@ -100,3 +100,41 @@ def test_codigo_vencido(app_numi):
     with app_numi.application.app_context():
         ejecutar("UPDATE grupos SET codigo_vence = '2026-01-01' WHERE codigo = 'B7C5-64'")
     assert app_numi.post("/api/app/v1/unirse", json={"uid": "n2", "codigo": "B7C5-64"}).status_code == 410
+
+
+def test_actividad_de_plantilla_llega_con_contenido_y_archivos(app_numi, tmp_path):
+    """Lo que necesita la app para jugar una actividad creada en el panel."""
+    from servidor_docente.db import consultar, ejecutar
+
+    app_numi.application.config["CARPETA_UPLOADS"] = tmp_path
+    (tmp_path / "app").mkdir()
+    (tmp_path / "app" / "banano.png").write_bytes(b"\x89PNG-banano")
+    with app_numi.application.app_context():
+        recurso_id = ejecutar("INSERT INTO recursos (nombre, tipo, carpeta, archivo) VALUES ('banano.png', 'Imagen', 'actividades/ciencias', 'app/banano.png')")
+        contenido = ('{"preguntas": [{"enunciado": "¿Cuál es una fruta?", "audio": null, "opciones": ['
+                     f'{{"texto": "Banano", "imagen": {recurso_id}, "correcta": true}}, '
+                     '{"texto": "Silla", "imagen": null, "correcta": false}]}]}')
+        actividad_id = ejecutar("""INSERT INTO actividades (slug, nombre, materia, grado, tipo, estado, en_app, contenido)
+                                   VALUES ('toca-las-frutas', 'toca las frutas', 'ciencias', 2, 'Selección múltiple', 'Publicada', FALSE, %s)""",
+                                (contenido,))
+        ejecutar("INSERT INTO actividad_recurso VALUES (%s, %s)", (actividad_id, recurso_id))
+        codigo = consultar("SELECT codigo FROM grupos WHERE codigo_vence >= CURDATE() AND codigo_usos < codigo_usos_max LIMIT 1", uno=True)["codigo"]
+
+    app_numi.post("/api/app/v1/unirse", json={"uid": "nino-plantilla", "codigo": codigo})
+    datos = app_numi.get("/api/app/v1/actividades?uid=nino-plantilla").get_json()
+    frutas = next(a for a in datos["actividades"] if a["id"] == "toca-las-frutas")
+    assert frutas["en_app"] is False and frutas["tipo"] == "Selección múltiple"
+    assert frutas["contenido"]["preguntas"][0]["opciones"][0]["imagen"] == recurso_id
+    assert frutas["recursos"] == [{"id": recurso_id, "nombre": "banano.png", "tipo": "Imagen",
+                                   "version_minima": None, "descargable": True}]
+    assert frutas["actualizada"]
+    numeros = next(a for a in datos["actividades"] if a["id"] == "los-numeros")
+    assert numeros["en_app"] is True and numeros["contenido"] is None
+
+    archivo = app_numi.get(f"/api/app/v1/recursos/{recurso_id}")
+    assert archivo.status_code == 200 and archivo.data == b"\x89PNG-banano"
+    assert app_numi.get("/api/app/v1/recursos/999999").status_code == 404
+
+
+def test_recursos_exigen_la_clave(base_de_pruebas, client):
+    assert client.get("/api/app/v1/recursos/1").status_code == 401

@@ -3,9 +3,18 @@ def ids_recursos(admin, *nombres):
     return [r["id"] for r in recursos if r["nombre"] in nombres]
 
 
+def pregunta(enunciado="¿Cuál es una fruta?", opciones=None, audio=None):
+    return {"enunciado": enunciado, "audio": audio, "opciones": opciones or [
+        {"texto": "Manzana", "imagen": None, "correcta": True},
+        {"texto": "Silla", "imagen": None, "correcta": False},
+    ]}
+
+
 def nueva(**cambios):
+    """Actividad creada en el panel con la plantilla Selección múltiple (la que la app sabe jugar)."""
     datos = {"nombre": "El ciclo del agua", "materia": "Ciencias naturales", "grado": "Grado 2°",
-             "tipo": "Arrastrar", "estado": "Publicada", "recursos": []}
+             "tipo": "Selección múltiple", "estado": "Publicada", "recursos": [],
+             "contenido": {"preguntas": [pregunta()]}}
     return datos | cambios
 
 
@@ -81,3 +90,54 @@ def test_eliminar(admin):
     assert admin.get("/api/actividades/module-1").status_code == 404
     assert all(a["id"] != "module-1" for a in admin.get("/api/actividades").get_json())
     assert admin.get("/api/historial").get_json()[0]["tipo"] == "Eliminada"
+
+
+# ---------- Plantilla Selección múltiple ----------
+
+def test_detalle_devuelve_contenido_y_si_esta_en_la_app(admin):
+    slug = admin.post("/api/actividades", json=nueva(nombre="Frutas")).get_json()["id"]
+    detalle = admin.get(f"/api/actividades/{slug}").get_json()
+    assert detalle["en_app"] is False
+    assert detalle["contenido"]["preguntas"][0]["opciones"][0] == {"texto": "Manzana", "imagen": None, "correcta": True}
+    assert admin.get("/api/actividades/los-numeros").get_json()["en_app"] is True
+
+
+def test_tipo_sin_plantilla_solo_como_borrador(admin):
+    resp = admin.post("/api/actividades", json=nueva(nombre="Parejas nuevas", tipo="Memory match"))
+    assert resp.status_code == 400
+    assert "borrador" in resp.get_json()["error"].lower()
+    borrador = admin.post("/api/actividades", json=nueva(nombre="Parejas nuevas", tipo="Memory match", estado="Borrador"))
+    assert borrador.status_code == 201
+
+
+def test_contenido_incompleto_no_se_publica(admin):
+    sin_correcta = pregunta(opciones=[{"texto": "A", "correcta": False}, {"texto": "B", "correcta": False}])
+    dos_correctas = pregunta(opciones=[{"texto": "A", "correcta": True}, {"texto": "B", "correcta": True}])
+    una_opcion = pregunta(opciones=[{"texto": "A", "correcta": True}])
+    opcion_vacia = pregunta(opciones=[{"texto": "A", "correcta": True}, {"texto": "", "correcta": False}])
+    for malas in ([], [sin_correcta], [dos_correctas], [una_opcion], [opcion_vacia], [pregunta(enunciado="")]):
+        resp = admin.post("/api/actividades", json=nueva(nombre="Incompleta", contenido={"preguntas": malas}))
+        assert resp.status_code == 400, malas
+    # Como borrador sí se puede guardar a medias
+    resp = admin.post("/api/actividades", json=nueva(nombre="Incompleta", estado="Borrador", contenido={"preguntas": [una_opcion]}))
+    assert resp.status_code == 201
+
+
+def test_contenido_valida_tipo_de_recurso_y_los_vincula(admin):
+    imagen, = ids_recursos(admin, "manzana.png")
+    audio, = ids_recursos(admin, "contar.mp3")
+    con_imagen = pregunta(audio=audio, opciones=[{"texto": "", "imagen": imagen, "correcta": True},
+                                                 {"texto": "Silla", "correcta": False}])
+    slug = admin.post("/api/actividades", json=nueva(nombre="Con imagen", contenido={"preguntas": [con_imagen]})).get_json()["id"]
+    assert {r["nombre"] for r in admin.get(f"/api/actividades/{slug}").get_json()["recursos"]} == {"manzana.png", "contar.mp3"}
+
+    al_reves = pregunta(audio=imagen)  # una imagen donde va un audio
+    assert admin.post("/api/actividades", json=nueva(nombre="Al revés", contenido={"preguntas": [al_reves]})).status_code == 400
+
+
+def test_editar_contenido_queda_en_el_historial(admin):
+    slug = admin.post("/api/actividades", json=nueva(nombre="Colores")).get_json()["id"]
+    otra = pregunta(enunciado="¿De qué color es el cielo?")
+    admin.put(f"/api/actividades/{slug}", json=nueva(nombre="Colores", contenido={"preguntas": [pregunta(), otra]}))
+    assert admin.get("/api/historial").get_json()[0]["cambio"] == "Contenido actualizado"
+    assert len(admin.get(f"/api/actividades/{slug}").get_json()["contenido"]["preguntas"]) == 2

@@ -86,6 +86,8 @@ CREATE TABLE actividades (
   tipo            VARCHAR(40) NOT NULL,
   descripcion     VARCHAR(255) NOT NULL DEFAULT '',
   estado          ENUM('Publicada', 'Borrador', 'Desactivada') NOT NULL DEFAULT 'Borrador',
+  en_app          BOOLEAN NOT NULL DEFAULT FALSE,  -- ya programada en la app (pantalla propia en Flutter)
+  contenido       JSON NULL,                       -- preguntas y opciones de una plantilla (ej. Selección múltiple)
   eliminada       BOOLEAN NOT NULL DEFAULT FALSE,  -- se marca, no se borra: el historial la sigue nombrando
   creada_en       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   actualizada_en  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -96,7 +98,7 @@ CREATE TABLE actividades (
 CREATE TABLE recursos (
   id              INT AUTO_INCREMENT PRIMARY KEY,
   nombre          VARCHAR(120) NOT NULL,
-  tipo            ENUM('Imagen', 'Audio') NOT NULL,
+  tipo            ENUM('Imagen', 'Audio', 'Video') NOT NULL,
   carpeta         VARCHAR(60) NOT NULL,   -- p. ej. actividades/ciencias
   emoji           VARCHAR(8) NULL,        -- miniatura que muestra el panel
   archivo         VARCHAR(255) NULL,      -- ruta del archivo subido (carpeta uploads/)

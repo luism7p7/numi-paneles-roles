@@ -8,7 +8,7 @@ from flask import Blueprint, abort, jsonify, request, session
 from werkzeug.security import generate_password_hash
 
 from .db import confirmar, consultar, ejecutar
-from .utilidades import CORREO_VALIDO, ErrorDeDatos, correo, fecha_corta, iniciales, password_temporal, texto
+from .utilidades import CORREO_VALIDO, ErrorDeDatos, correo, entero, fecha_corta, iniciales, password_temporal, texto
 
 bp = Blueprint("usuarios", __name__)
 
@@ -16,8 +16,19 @@ ROLES = ("Docente", "Administrador")
 MAX_FILAS_IMPORTACION = 1000
 
 
-def usuario_json(fila):
+def grupos_por_docente():
+    """{docente_id: [{"id": 3, "corto": "3° A"}, ...]}"""
+    resultado = {}
+    for g in consultar("SELECT id, grado, letra, docente_id FROM grupos WHERE docente_id IS NOT NULL ORDER BY grado, letra"):
+        resultado.setdefault(g["docente_id"], []).append({"id": g["id"], "corto": f"{g['grado']}° {g['letra']}"})
+    return resultado
+
+
+def usuario_json(fila, grupos=None):
+    if grupos is None:
+        grupos = grupos_por_docente()
     return {
+        "grupos": grupos.get(fila["id"], []),  # grupos que maneja el docente
         "id": fila["id"],
         "nombre": fila["nombre"],
         "apellido": fila["apellido"],
@@ -68,7 +79,33 @@ def validar(datos, usuario_id=None):
     }
     if consultar("SELECT 1 FROM usuarios WHERE correo = %s AND id <> %s", (valores["correo"], usuario_id or 0), uno=True):
         raise ErrorDeDatos("Ya existe una cuenta con ese correo.", 409)
+
+    # Grupos a cargo (solo docentes). Si no vienen en la petición, no se tocan.
+    valores["grupos"] = None
+    if "grupos" in datos:
+        ids = sorted({entero(i, "el grupo", 1, 10**9) for i in datos.get("grupos") or []})
+        if rol != "Docente":
+            ids = []
+        if ids:
+            marcas = ", ".join(["%s"] * len(ids))
+            propios = consultar(
+                f"SELECT id FROM grupos WHERE institucion_id = %s AND id IN ({marcas})",
+                [valores["institucion_id"], *ids],
+            )
+            if len(propios) != len(ids):
+                raise ErrorDeDatos("Uno de los grupos elegidos no es de la institución del docente.")
+        valores["grupos"] = ids
     return valores
+
+
+def guardar_grupos(usuario_id, ids):
+    """El docente queda a cargo exactamente de estos grupos (un grupo tiene un solo docente)."""
+    if ids is None:
+        return
+    ejecutar("UPDATE grupos SET docente_id = NULL WHERE docente_id = %s", (usuario_id,), guardar=False)
+    if ids:
+        marcas = ", ".join(["%s"] * len(ids))
+        ejecutar(f"UPDATE grupos SET docente_id = %s WHERE id IN ({marcas})", [usuario_id, *ids], guardar=False)
 
 
 @bp.get("/api/usuarios")
@@ -78,7 +115,8 @@ def listar():
            LEFT JOIN instituciones i ON i.id = u.institucion_id
            ORDER BY FIELD(u.estado, 'Pendiente', 'Activo', 'Inactivo'), u.nombre, u.apellido"""
     )
-    return jsonify([usuario_json(f) for f in filas])
+    grupos = grupos_por_docente()
+    return jsonify([usuario_json(f, grupos) for f in filas])
 
 
 @bp.post("/api/usuarios")
@@ -88,7 +126,10 @@ def crear():
         """INSERT INTO usuarios (nombre, apellido, correo, rol, institucion_id, estado)
            VALUES (%s, %s, %s, %s, %s, 'Pendiente')""",
         (v["nombre"], v["apellido"], v["correo"], v["rol"], v["institucion_id"]),
+        guardar=False,
     )
+    guardar_grupos(nuevo_id, v["grupos"])
+    confirmar()
     return jsonify(usuario_json(buscar(nuevo_id))), 201
 
 
@@ -101,7 +142,13 @@ def editar(usuario_id):
     ejecutar(
         "UPDATE usuarios SET nombre = %s, apellido = %s, correo = %s, rol = %s, institucion_id = %s WHERE id = %s",
         (v["nombre"], v["apellido"], v["correo"], v["rol"], v["institucion_id"], usuario_id),
+        guardar=False,
     )
+    # Un administrador o un docente que cambió de institución deja sus grupos anteriores
+    if v["grupos"] is None and v["rol"] != "Docente":
+        v["grupos"] = []
+    guardar_grupos(usuario_id, v["grupos"])
+    confirmar()
     return jsonify(usuario_json(buscar(usuario_id)))
 
 
@@ -123,6 +170,17 @@ def cambiar_estado(usuario_id):
     ejecutar("UPDATE usuarios SET estado = %s WHERE id = %s", (nuevo, usuario_id), guardar=False)
     confirmar()
     return jsonify(usuario=usuario_json(buscar(usuario_id)), password_temporal=temporal)
+
+
+@bp.post("/api/usuarios/<int:usuario_id>/password-temporal")
+def restablecer_password(usuario_id):
+    """La contraseña guardada es un hash y no se puede leer: se reemplaza por una temporal nueva."""
+    actual = buscar(usuario_id)
+    if actual["estado"] != "Activo":
+        raise ErrorDeDatos("Activa la cuenta primero; al activarla se genera la contraseña temporal.")
+    temporal = password_temporal()
+    ejecutar("UPDATE usuarios SET password_hash = %s WHERE id = %s", (generate_password_hash(temporal), usuario_id))
+    return jsonify(password_temporal=temporal)
 
 
 def leer_filas(archivo):

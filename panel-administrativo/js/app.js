@@ -423,9 +423,165 @@ async function iniciarDetalle() {
 /* ---------- Constructor de actividades ---------- */
 function miniatura(recurso, clase) {
   const nodo = el(clase === 'thumb' ? 'div' : 'span', clase);
-  if (recurso.tipo === 'Audio') nodo.appendChild(icono('bi-music-note-beamed'));
-  else nodo.textContent = recurso.emoji || '🖼️';
+  if (recurso.tipo === 'Audio') {
+    nodo.appendChild(icono('bi-music-note-beamed'));
+  } else if (recurso.tipo === 'Video') {
+    nodo.appendChild(icono('bi-film'));
+  } else if (recurso.url) {
+    // Imagen real de la app: cabe dentro del mismo cuadro que tenía el emoji
+    // (.thumb mide 64px de alto y .thumb-sm 40px; sin este límite la imagen se sale)
+    const alto = clase === 'thumb' ? '64px' : '40px';
+    const img = el('img');
+    img.src = recurso.url;
+    img.alt = recurso.nombre;
+    img.loading = 'lazy';
+    Object.assign(img.style, { maxWidth: '100%', maxHeight: alto, objectFit: 'contain' });
+    nodo.style.overflow = 'hidden';
+    nodo.appendChild(img);
+  } else {
+    nodo.textContent = recurso.emoji || '🖼️';
+  }
   return nodo;
+}
+
+/* ---------- Editor de contenido (plantilla Selección múltiple) ---------- */
+// El HTML del constructor no trae esta tarjeta: se crea aquí con las mismas clases del diseño.
+const TIPOS_CON_PLANTILLA = ['Selección múltiple'];
+const MAX_OPCIONES = 4;
+
+function crearEditorContenido(actividad, catalogo) {
+  const enApp = Boolean(actividad?.en_app);
+  const preguntas = structuredClone(actividad?.contenido?.preguntas || []);
+  const preguntaNueva = () => ({
+    enunciado: '', audio: null,
+    opciones: [{ texto: '', imagen: null, correcta: true }, { texto: '', imagen: null, correcta: false }]
+  });
+
+  const filaPrincipal = $('#resourceGrid').closest('.row');
+  const aviso = el('div', 'notice mt-4');
+  aviso.append(icono('bi-info-circle'), el('div', '', 'La app todavía no tiene plantilla para este tipo de actividad: guárdala como borrador. Por ahora se pueden publicar actividades de tipo Selección múltiple.'));
+  const tarjeta = el('div', 'card mt-4');
+  const cabecera = el('div', 'card-header d-flex justify-content-between align-items-center flex-wrap gap-2');
+  const titulos = el('div');
+  const titulo = el('h2', 'card-title');
+  titulo.append(icono('bi-ui-checks-grid me-2 text-primary'), 'Contenido');
+  titulos.append(titulo, el('span', 'small text-secondary', 'Preguntas que verá el niño. Marca la respuesta correcta de cada una.'));
+  const botonAgregar = el('button', 'btn btn-sm btn-soft');
+  botonAgregar.type = 'button';
+  botonAgregar.append(icono('bi-plus-lg me-1'), 'Agregar pregunta');
+  cabecera.append(titulos, botonAgregar);
+  const lista = el('div', 'card-body p-4');
+  tarjeta.append(cabecera, lista);
+  filaPrincipal.after(aviso, tarjeta);
+
+  // Imágenes y audios de la carpeta de la materia elegida, más los generales de la app
+  const recursosDe = tipo => {
+    const carpeta = `actividades/${CARPETA_MATERIA[$('#actMateria').value]}`;
+    return catalogo.filter(r => r.tipo === tipo && r.compatible && (r.carpeta === carpeta || r.carpeta === 'app/general'));
+  };
+  const selectRecurso = (tipo, elegido, vacio) => {
+    const select = el('select', 'form-select form-select-sm');
+    const opciones = recursosDe(tipo);
+    const actual = catalogo.find(r => r.id === elegido);
+    if (actual && !opciones.includes(actual)) opciones.unshift(actual); // conserva lo ya elegido
+    select.append(el('option', '', vacio), ...opciones.map(r => {
+      const op = el('option', '', r.nombre);
+      op.value = r.id;
+      return op;
+    }));
+    select.value = elegido ?? '';
+    return select;
+  };
+
+  const render = () => {
+    lista.replaceChildren();
+    if (!preguntas.length) lista.appendChild(el('p', 'text-secondary mb-0', 'Todavía no hay preguntas. Usa «Agregar pregunta».'));
+    preguntas.forEach((p, i) => {
+      const bloque = el('div', 'border rounded-4 p-3 mb-3');
+      const encabezado = el('div', 'd-flex justify-content-between align-items-center mb-2');
+      const quitar = el('button', 'btn btn-sm btn-outline-danger', 'Quitar pregunta');
+      quitar.type = 'button';
+      quitar.addEventListener('click', () => { preguntas.splice(i, 1); render(); });
+      encabezado.append(el('span', 'fw-bold', `Pregunta ${i + 1}`), quitar);
+
+      const fila = el('div', 'row g-3 mb-3');
+      const colTexto = el('div', 'col-md-8');
+      const enunciado = el('input', 'form-control');
+      enunciado.maxLength = 200;
+      enunciado.placeholder = 'Ej. ¿Cuál de estos es una fruta?';
+      enunciado.value = p.enunciado;
+      enunciado.addEventListener('input', () => { p.enunciado = enunciado.value; });
+      colTexto.append(el('label', 'form-label', 'Enunciado'), enunciado);
+      const colAudio = el('div', 'col-md-4');
+      const audio = selectRecurso('Audio', p.audio, 'Sin audio');
+      audio.addEventListener('change', () => { p.audio = audio.value ? Number(audio.value) : null; });
+      colAudio.append(el('label', 'form-label', 'Audio de la pregunta (opcional)'), audio);
+      fila.append(colTexto, colAudio);
+
+      const opciones = el('div');
+      p.opciones.forEach((o, j) => {
+        const filaOpcion = el('div', 'd-flex align-items-center gap-2 mb-2');
+        const correcta = el('input', 'form-check-input mt-0');
+        correcta.type = 'radio';
+        correcta.name = `correcta-${i}`;
+        correcta.checked = o.correcta;
+        correcta.title = 'Respuesta correcta';
+        correcta.setAttribute('aria-label', 'Respuesta correcta');
+        correcta.addEventListener('change', () => p.opciones.forEach((otra, k) => { otra.correcta = k === j; }));
+        const texto = el('input', 'form-control form-control-sm');
+        texto.maxLength = 60;
+        texto.placeholder = `Opción ${j + 1}`;
+        texto.value = o.texto;
+        texto.addEventListener('input', () => { o.texto = texto.value; });
+        const vista = el('span', 'thumb-sm flex-shrink-0');
+        const pintarVista = () => {
+          const recurso = catalogo.find(r => r.id === o.imagen);
+          vista.replaceChildren(...(recurso ? miniatura(recurso, 'thumb-sm').childNodes : []));
+        };
+        const imagen = selectRecurso('Imagen', o.imagen, 'Sin imagen');
+        imagen.style.maxWidth = '220px';
+        imagen.addEventListener('change', () => { o.imagen = imagen.value ? Number(imagen.value) : null; pintarVista(); });
+        pintarVista();
+        const borrar = el('button', 'btn btn-sm btn-light');
+        borrar.type = 'button';
+        borrar.setAttribute('aria-label', 'Quitar opción');
+        borrar.appendChild(icono('bi-x-lg'));
+        borrar.disabled = p.opciones.length <= 2;
+        borrar.addEventListener('click', () => {
+          p.opciones.splice(j, 1);
+          if (!p.opciones.some(x => x.correcta)) p.opciones[0].correcta = true;
+          render();
+        });
+        filaOpcion.append(correcta, texto, vista, imagen, borrar);
+        opciones.appendChild(filaOpcion);
+      });
+      if (p.opciones.length < MAX_OPCIONES) {
+        const agregar = el('button', 'btn btn-sm btn-soft mt-1');
+        agregar.type = 'button';
+        agregar.append(icono('bi-plus-lg me-1'), 'Agregar opción');
+        agregar.addEventListener('click', () => { p.opciones.push({ texto: '', imagen: null, correcta: false }); render(); });
+        opciones.appendChild(agregar);
+      }
+      bloque.append(encabezado, fila, el('div', 'small fw-semibold mb-2', 'Opciones (marca la correcta)'), opciones);
+      lista.appendChild(bloque);
+    });
+  };
+
+  const usaPlantilla = () => !enApp && TIPOS_CON_PLANTILLA.includes($('#actTipo').value);
+  const actualizar = () => {
+    tarjeta.classList.toggle('d-none', !usaPlantilla());
+    aviso.classList.toggle('d-none', enApp || usaPlantilla());
+  };
+  botonAgregar.addEventListener('click', () => { preguntas.push(preguntaNueva()); render(); });
+  $('#actTipo').addEventListener('change', actualizar);
+  $('#actMateria').addEventListener('change', render);
+  render();
+  actualizar();
+
+  return {
+    contenido: () => (usaPlantilla() ? { preguntas } : null),
+    cantidad: () => (usaPlantilla() ? preguntas.length : null)
+  };
 }
 
 async function iniciarConstructor() {
@@ -526,6 +682,7 @@ async function iniciarConstructor() {
     render();
   };
   $('#actMateria').addEventListener('change', renderGrid);
+  const editor = crearEditorContenido(actividad, catalogo);
 
   // Modal "Más recursos": todo el catálogo, con búsqueda, tipo y páginas
   catalogo.forEach(r => {
@@ -569,6 +726,17 @@ async function iniciarConstructor() {
     list.replaceChildren();
     selected.forEach(recurso => list.appendChild(el('li', '', `${recurso.nombre} · ${recurso.tipo}`)));
 
+    // Fila "Preguntas" en el resumen (solo para actividades con plantilla)
+    let filaPreguntas = $('#resPreguntas');
+    if (!filaPreguntas) {
+      const estado = $('#resEstado').closest('dd').previousElementSibling;
+      filaPreguntas = el('dd', 'col-7');
+      filaPreguntas.id = 'resPreguntas';
+      estado.before(el('dt', 'col-5', 'Preguntas'), filaPreguntas);
+    }
+    const cantidad = editor.cantidad();
+    filaPreguntas.textContent = cantidad === null ? 'No aplica (pantalla propia de la app)' : plural(cantidad, 'pregunta', 'preguntas');
+
     const [equipos, nuevos] = $$('#modalResumen .bg-light > .d-flex');
     const [eqTitulo, eqValor] = $$('span', equipos);
     eqTitulo.textContent = meta.version_desactualizada ? `Equipos con v${meta.version_desactualizada}` : 'Equipos desactualizados';
@@ -601,7 +769,8 @@ async function iniciarConstructor() {
       grado: $('#actGrado').value,
       tipo: $('#actTipo').value,
       estado,
-      recursos: [...selected.keys()].map(Number)
+      recursos: [...selected.keys()].map(Number),
+      contenido: editor.contenido()
     };
     const { ok, datos } = actividad
       ? await api(`/api/actividades/${encodeURIComponent(actividad.id)}`, { metodo: 'PUT', cuerpo })
@@ -623,10 +792,34 @@ async function iniciarConstructor() {
 }
 
 /* ---------- Recursos ---------- */
+// Pestaña "Videos": copia de la de Audio (mismo estilo), porque el HTML solo trae Imágenes y Audio
+function crearPestanaVideos() {
+  const botonAudio = $('[data-bs-target="#tabAudio"]');
+  const itemVideos = botonAudio.parentElement.cloneNode(true);
+  const botonVideos = $('button', itemVideos);
+  botonVideos.dataset.bsTarget = '#tabVideos';
+  botonVideos.textContent = 'Videos';
+  botonVideos.classList.remove('active');
+  botonAudio.parentElement.after(itemVideos);
+
+  const panelVideos = $('#tabAudio').cloneNode(true);
+  panelVideos.id = 'tabVideos';
+  panelVideos.classList.remove('show', 'active');
+  $('tbody', panelVideos).replaceChildren();
+  $('#tabAudio').after(panelVideos);
+}
+
+// Agrega paginación a las tablas que en el HTML no la traen (Audio y Videos)
+function asegurarPaginacion(panel) {
+  const pie = $('.table-footer', panel);
+  if (!$('.pagination', pie)) pie.appendChild(el('ul', 'pagination pagination-sm'));
+}
+
 function iniciarRecursos() {
   const modal = $('#modalSubir');
   const botonSubir = $('.modal-footer .btn-primary', modal);
   delete botonSubir.dataset.toast; // el mensaje lo da el resultado real de la carga
+  crearPestanaVideos();
   cargarRecursos();
 
   // Subir archivos: botón "Seleccionar carpeta" o arrastrar a la zona
@@ -636,9 +829,9 @@ function iniciarRecursos() {
   let elegidos = [];
   const elegir = archivos => {
     elegidos = Array.from(archivos);
-    ayuda.textContent = elegidos.length ? `${plural(elegidos.length, 'archivo listo', 'archivos listos')} para subir` : 'PNG, JPG o MP3';
+    ayuda.textContent = elegidos.length ? `${plural(elegidos.length, 'archivo listo', 'archivos listos')} para subir` : 'PNG, JPG, MP3 o MP4';
   };
-  input.accept = '.png,.jpg,.jpeg,.mp3';
+  input.accept = '.png,.jpg,.jpeg,.mp3,.mp4';
   input.addEventListener('change', () => elegir(input.files));
   zona.addEventListener('dragover', e => e.preventDefault());
   zona.addEventListener('drop', e => {
@@ -649,7 +842,7 @@ function iniciarRecursos() {
 
   botonSubir.addEventListener('click', async () => {
     if (!elegidos.length) {
-      showToast('Selecciona al menos un archivo PNG, JPG o MP3.');
+      showToast('Selecciona al menos un archivo PNG, JPG, MP3 o MP4.');
       return;
     }
     const formulario = new FormData();
@@ -672,9 +865,19 @@ async function cargarRecursos() {
   if (!ok) return mostrarError(datos);
   const paneles = [
     { tipo: 'Imagen', carpetaBase: 'images', panel: $('#tabImagenes'), estado: { pagina: 1 } },
-    { tipo: 'Audio', carpetaBase: 'audio', panel: $('#tabAudio'), estado: { pagina: 1 } }
+    { tipo: 'Audio', carpetaBase: 'audio', panel: $('#tabAudio'), estado: { pagina: 1 } },
+    { tipo: 'Video', carpetaBase: 'videos', panel: $('#tabVideos'), estado: { pagina: 1 } }
   ];
+
+  // Filtro de carpetas con las carpetas que existen de verdad
+  const selectCarpeta = $('#carpeta');
+  const elegida = selectCarpeta.selectedIndex > 0 ? selectCarpeta.value : '';
+  const carpetas = [...new Set(datos.recursos.map(r => r.carpeta))].sort();
+  llenarSelect(selectCarpeta, carpetas, true);
+  if (carpetas.includes(elegida)) selectCarpeta.value = elegida;
+
   paneles.forEach(p => {
+    asegurarPaginacion(p.panel);
     const tbody = $('tbody', p.panel);
     tbody.replaceChildren();
     datos.recursos.filter(r => r.tipo === p.tipo).forEach(r => {
@@ -794,6 +997,111 @@ function llenarSelect(select, opciones, conservarPrimera = false) {
   select.replaceChildren(...primera, ...opciones.map(texto => el('option', '', texto)));
 }
 
+// Ventana con la contraseña temporal: se muestra una sola vez y se puede copiar
+function mostrarPasswordTemporal(nombre, password) {
+  let modal = $('#modalPasswordTemporal');
+  if (!modal) {
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="modal fade" id="modalPasswordTemporal" tabindex="-1" aria-labelledby="passwordTemporalTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-body text-center p-4">
+              <div class="danger-icon bg-success-subtle text-success"><i class="bi bi-key"></i></div>
+              <h2 class="h5 fw-bold" id="passwordTemporalTitulo"></h2>
+              <p class="text-secondary">Compártela solo con esa persona. Por seguridad <strong>no se volverá a mostrar</strong>.</p>
+              <div class="border rounded-3 p-3 fs-3 fw-bold font-monospace mb-3" data-password></div>
+              <button type="button" class="btn btn-primary" data-copiar><i class="bi bi-clipboard me-1"></i> Copiar contraseña</button>
+            </div>
+            <div class="modal-footer justify-content-center border-0 pt-0 pb-4">
+              <button type="button" class="btn btn-light" data-bs-dismiss="modal">Listo, ya la guardé</button>
+            </div>
+          </div>
+        </div>
+      </div>`);
+    modal = $('#modalPasswordTemporal');
+    $('[data-copiar]', modal).addEventListener('click', () => {
+      const texto = $('[data-password]', modal).textContent;
+      const listo = () => showToast('Contraseña copiada.');
+      if (navigator.clipboard) navigator.clipboard.writeText(texto).then(listo, listo);
+      else listo();
+    });
+  }
+  $('#passwordTemporalTitulo', modal).textContent = `Contraseña temporal de ${nombre}`;
+  $('[data-password]', modal).textContent = password;
+  bootstrap.Modal.getOrCreateInstance(modal).show();
+}
+
+// "Grupos a cargo" dentro de los modales Crear / Editar usuario (el HTML no lo trae).
+// Muestra los grupos de la institución elegida y permite crear uno nuevo.
+function crearSelectorGrupos(modal, selectRol, selectInst, instituciones) {
+  const bloque = el('div', 'mt-3');
+  bloque.innerHTML = `
+    <label class="form-label">Grupos a cargo</label>
+    <p class="small text-secondary mb-2">Marca los grados y grupos que manejará el docente. Puede tener varios.</p>
+    <div class="d-grid gap-1 mb-2" data-lista></div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <select class="form-select form-select-sm w-auto" aria-label="Grado del grupo nuevo" data-grado>
+        ${[1, 2, 3, 4, 5].map(g => `<option value="${g}">Grado ${g}°</option>`).join('')}
+      </select>
+      <select class="form-select form-select-sm w-auto" aria-label="Letra del grupo nuevo" data-letra>
+        ${'ABCDEFGH'.split('').map(l => `<option>${l}</option>`).join('')}
+      </select>
+      <button type="button" class="btn btn-sm btn-soft" data-crear><i class="bi bi-plus-lg me-1"></i>Crear grupo</button>
+    </div>`;
+  $('.modal-body', modal).appendChild(bloque);
+  const lista = $('[data-lista]', bloque);
+  let usuarioId = null;
+  let grupos = [];
+
+  const institucionId = () => instituciones().find(i => i.nombre === selectInst.value)?.id;
+  const marcados = () => $$('input[type="checkbox"]:checked', lista).map(cb => Number(cb.value));
+  const visible = () => selectRol.value === 'Docente' && Boolean(institucionId());
+
+  const pintar = seleccion => {
+    lista.replaceChildren();
+    if (!grupos.length) lista.appendChild(el('span', 'small text-secondary', 'Esta institución todavía no tiene grupos: crea uno abajo.'));
+    grupos.forEach(g => {
+      const fila = el('div', 'form-check mb-0');
+      const cb = el('input', 'form-check-input');
+      cb.type = 'checkbox';
+      cb.value = g.id;
+      cb.id = `grupo-${modal.id}-${g.id}`;
+      cb.checked = seleccion.includes(g.id);
+      const etiqueta = el('label', 'form-check-label', g.nombre);
+      etiqueta.htmlFor = cb.id;
+      if (g.docente_id && g.docente_id !== usuarioId) {
+        etiqueta.append(' ', el('span', 'small text-secondary', `(hoy: ${g.docente_nombre}; si lo marcas, pasa a este docente)`));
+      }
+      fila.append(cb, etiqueta);
+      lista.appendChild(fila);
+    });
+  };
+
+  const cargar = async (seleccion = []) => {
+    bloque.classList.toggle('d-none', !visible());
+    if (!visible()) return;
+    const { ok, datos } = await api(`/api/instituciones/${institucionId()}`);
+    grupos = ok ? datos.grupos : [];
+    pintar(seleccion);
+  };
+
+  $('[data-crear]', bloque).addEventListener('click', async () => {
+    const { ok, datos } = await api(`/api/instituciones/${institucionId()}/grupos`, {
+      metodo: 'POST', cuerpo: { grado: $('[data-grado]', bloque).value, letra: $('[data-letra]', bloque).value }
+    });
+    if (!ok) return mostrarError(datos);
+    showToast(`Se creó el grupo ${datos.corto}.`);
+    await cargar([...marcados(), datos.id]);
+  });
+  selectRol.addEventListener('change', () => cargar(marcados()));
+  selectInst.addEventListener('change', () => cargar([]));
+
+  return {
+    abrir: (id, seleccion) => { usuarioId = id; return cargar(seleccion); },
+    ids: () => (visible() ? marcados() : [])
+  };
+}
+
 function iniciarUsuarios() {
   const tablaUsuarios = $('#tablaUsuarios');
   const tbody = $('tbody', tablaUsuarios);
@@ -804,7 +1112,41 @@ function iniciarUsuarios() {
   const botonImportar = $('.modal-footer .btn-primary', modalImportar);
   delete botonImportar.dataset.toast; // el mensaje lo da el resultado real de la importación
   let actual = null;
+  let instituciones = []; // [{id, nombre}] para saber de qué institución pedir los grupos
   tbody.replaceChildren();
+
+  const gruposEditar = crearSelectorGrupos($('#modalEditar'), $('#edRol'), $('#edInst'), () => instituciones);
+  const gruposCrear = crearSelectorGrupos(modalCrearEl, $('#crRol'), $('#crInst'), () => instituciones);
+  modalCrearEl.addEventListener('show.bs.modal', () => gruposCrear.abrir(null, []));
+
+  // Sección "Contraseña" en el modal Editar (el HTML no la trae).
+  // Pide un segundo clic para confirmar, porque la contraseña anterior deja de servir.
+  const bloqueContrasena = el('div', 'mt-3');
+  bloqueContrasena.innerHTML = `
+    <label class="form-label">Contraseña</label>
+    <p class="small text-secondary mb-2">Por seguridad no se puede ver. Si el usuario no la sabe, genera una temporal nueva.</p>`;
+  const btnRestablecer = el('button', '', '');
+  btnRestablecer.type = 'button';
+  bloqueContrasena.appendChild(btnRestablecer);
+  $('#modalEditar .modal-body').appendChild(bloqueContrasena);
+  const prepararRestablecer = () => {
+    btnRestablecer.innerHTML = '<i class="bi bi-key me-1"></i>Restablecer contraseña';
+    btnRestablecer.className = 'btn btn-sm btn-outline-secondary';
+    delete btnRestablecer.dataset.confirmar;
+  };
+  btnRestablecer.addEventListener('click', async () => {
+    if (!btnRestablecer.dataset.confirmar) {
+      btnRestablecer.dataset.confirmar = '1';
+      btnRestablecer.textContent = '¿Seguro? La anterior dejará de servir';
+      btnRestablecer.className = 'btn btn-sm btn-warning';
+      return;
+    }
+    const { ok, datos } = await api(`/api/usuarios/${actual.id}/password-temporal`, { metodo: 'POST' });
+    prepararRestablecer();
+    if (!ok) return mostrarError(datos);
+    modalEditar.hide();
+    mostrarPasswordTemporal(actual.nombre_completo, datos.password_temporal);
+  });
 
   const abrirEditar = u => {
     actual = u;
@@ -814,9 +1156,12 @@ function iniciarUsuarios() {
     $('#edCorreo').value = u.correo;
     $('#edRol').value = u.rol;
     $('#edInst').value = u.institucion;
+    gruposEditar.abrir(u.id, u.grupos.map(g => g.id));
     const activar = u.estado !== 'Activo';
     $('#btnToggleEstado').textContent = activar ? 'Activar usuario' : 'Desactivar usuario';
     $('#btnToggleEstado').className = activar ? 'btn btn-outline-success' : 'btn btn-outline-danger';
+    prepararRestablecer();
+    bloqueContrasena.classList.toggle('d-none', u.estado !== 'Activo'); // solo cuentas activas
     modalEditar.show();
   };
 
@@ -839,7 +1184,11 @@ function iniciarUsuarios() {
     editar.type = 'button';
     editar.addEventListener('click', () => abrirEditar(u));
     tdAccion.appendChild(editar);
-    tr.append(tdUsuario, el('td', '', u.rol), el('td', '', u.institucion), el('td', 'text-nowrap', u.ultimo_acceso), tdEstado, tdAccion);
+    // Institución y, debajo, los grupos que maneja el docente
+    const tdInstitucion = el('td');
+    tdInstitucion.append(el('div', '', u.institucion));
+    if (u.grupos.length) tdInstitucion.append(el('div', 'cell-sub', u.grupos.map(g => g.corto).join(' · ')));
+    tr.append(tdUsuario, el('td', '', u.rol), tdInstitucion, el('td', 'text-nowrap', u.ultimo_acceso), tdEstado, tdAccion);
     return tr;
   };
 
@@ -885,8 +1234,9 @@ function iniciarUsuarios() {
     let mensaje = activar
       ? `Se activó la cuenta de ${nombre}. Ya puede iniciar sesión en Numi.`
       : `Se desactivó la cuenta de ${nombre}. Su registro no se eliminó: sigue en la lista como Inactivo.`;
-    if (datos.password_temporal) mensaje += ` Contraseña temporal: ${datos.password_temporal} (compártela solo con esa persona).`;
     showFlash(mensaje);
+    // La contraseña temporal va en su propia ventana para que no pase desapercibida
+    if (datos.password_temporal) mostrarPasswordTemporal(nombre, datos.password_temporal);
     cargar(false);
   });
 
@@ -894,7 +1244,7 @@ function iniciarUsuarios() {
     e.preventDefault();
     const { ok, datos } = await api(`/api/usuarios/${actual.id}`, {
       metodo: 'PUT',
-      cuerpo: { nombre: $('#edNombre').value, apellido: $('#edApellido').value, correo: $('#edCorreo').value, rol: $('#edRol').value, institucion: $('#edInst').value }
+      cuerpo: { nombre: $('#edNombre').value, apellido: $('#edApellido').value, correo: $('#edCorreo').value, rol: $('#edRol').value, institucion: $('#edInst').value, grupos: gruposEditar.ids() }
     });
     if (!ok) return mostrarError(datos);
     modalEditar.hide();
@@ -906,7 +1256,7 @@ function iniciarUsuarios() {
     e.preventDefault();
     const { ok, datos } = await api('/api/usuarios', {
       metodo: 'POST',
-      cuerpo: { nombre: $('#crNombre').value, apellido: $('#crApellido').value, correo: $('#crCorreo').value, rol: $('#crRol').value, institucion: $('#crInst').value }
+      cuerpo: { nombre: $('#crNombre').value, apellido: $('#crApellido').value, correo: $('#crCorreo').value, rol: $('#crRol').value, institucion: $('#crInst').value, grupos: gruposCrear.ids() }
     });
     if (!ok) return mostrarError(datos);
     bootstrap.Modal.getOrCreateInstance(modalCrearEl).hide();
@@ -959,11 +1309,14 @@ function iniciarUsuarios() {
   // Instituciones reales en los selectores
   api('/api/instituciones').then(({ ok, datos }) => {
     if (!ok) return;
+    instituciones = datos;
     const nombres = datos.map(i => i.nombre).sort((a, b) => a.localeCompare(b));
     llenarSelect($('#instUsr'), [...nombres, 'Todas'], true);
     llenarSelect($('#edInst'), [...nombres, 'Todas']);
     llenarSelect($('#crInst'), nombres);
     llenarSelect($('#impInst'), nombres);
+    // Si "Crear usuario" ya estaba abierto (usuarios.html?crear=1), carga sus grupos ahora
+    if (modalCrearEl.classList.contains('show')) gruposCrear.abrir(null, []);
   });
 
   if (params.get('crear') === '1') bootstrap.Modal.getOrCreateInstance(modalCrearEl).show();
