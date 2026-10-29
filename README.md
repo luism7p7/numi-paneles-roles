@@ -132,3 +132,14 @@ Usan una base aparte (`numi_test`) que se crea de nuevo en cada archivo de prueb
 ## Capturas
 
 _Pendiente: agrega aquí capturas del panel administrativo y del panel docente con datos reales._
+
+
+## Equipo
+
+Proyecto hecho en equipo como parte de Numi, la aplicación educativa offline para niños de zonas rurales.
+
+| Integrante | Enlaces |
+| :-- | :-- |
+| **Luis Miguel Muñoz Rendón** | [GitHub](https://github.com/luism7p7) · [Portafolio](https://luism7p7.github.io) |
+| **Alexander Mejía Ospina** | [GitHub](https://github.com/AlexanderM-Code) · [Portafolio](https://alexanderm-code.github.io) |
+| **Santiago Mayorga Hueso** | [GitHub](https://github.com/qxsantx) |
