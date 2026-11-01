@@ -136,5 +136,34 @@ def test_actividad_de_plantilla_llega_con_contenido_y_archivos(app_numi, tmp_pat
     assert app_numi.get("/api/app/v1/recursos/999999").status_code == 404
 
 
+def test_todas_las_plantillas_llegan_a_la_app_con_su_contenido(app_numi):
+    """Cada tipo con plantilla viaja con su propio formato de contenido (ver servidor_admin/plantillas.py)."""
+    import json
+
+    from servidor_docente.db import consultar, ejecutar
+
+    contenidos = {
+        "Arrastrar": {"grupos": [{"nombre": "Vivo", "imagen": None}, {"nombre": "No vivo", "imagen": None}],
+                      "elementos": [{"texto": "Perro", "imagen": None, "grupo": 0}, {"texto": "Piedra", "imagen": None, "grupo": 1}]},
+        "Arrastrar y soltar": {"parejas": [{"elemento": {"texto": "3", "imagen": None}, "destino": {"texto": "tres", "imagen": None}},
+                                           {"elemento": {"texto": "1", "imagen": None}, "destino": {"texto": "uno", "imagen": None}}]},
+        "Ordenar sílabas": {"palabras": [{"silabas": ["ga", "to"], "imagen": None, "audio": None}]},
+        "Memory match": {"pares": [{"texto": "Dog", "imagen": None}, {"texto": "Cat", "imagen": None}]},
+        "Comprensión auditiva": {"preguntas": [{"enunciado": "¿Qué escuchaste?", "audio": None, "opciones": [
+            {"texto": "Perro", "imagen": None, "correcta": True}, {"texto": "Gato", "imagen": None, "correcta": False}]}]},
+    }
+    with app_numi.application.app_context():
+        for n, (tipo, contenido) in enumerate(contenidos.items()):
+            ejecutar("""INSERT INTO actividades (slug, nombre, materia, grado, tipo, estado, en_app, contenido)
+                        VALUES (%s, %s, 'ciencias', 2, %s, 'Publicada', FALSE, %s)""",
+                     (f"plantilla-{n}", f"Plantilla {n}", tipo, json.dumps(contenido, ensure_ascii=False)))
+        codigo = consultar("SELECT codigo FROM grupos WHERE codigo_vence >= CURDATE() AND codigo_usos < codigo_usos_max LIMIT 1", uno=True)["codigo"]
+
+    app_numi.post("/api/app/v1/unirse", json={"uid": "nino-todas", "codigo": codigo})
+    datos = app_numi.get("/api/app/v1/actividades?uid=nino-todas").get_json()
+    recibidas = {a["tipo"]: a["contenido"] for a in datos["actividades"] if a["id"].startswith("plantilla-")}
+    assert recibidas == contenidos
+
+
 def test_recursos_exigen_la_clave(base_de_pruebas, client):
     assert client.get("/api/app/v1/recursos/1").status_code == 401

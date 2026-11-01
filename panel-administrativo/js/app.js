@@ -444,45 +444,27 @@ function miniatura(recurso, clase) {
   return nodo;
 }
 
-/* ---------- Editor de contenido (plantilla Selección múltiple) ---------- */
+/* ---------- Editor de contenido (plantillas de cada tipo de actividad) ---------- */
 // El HTML del constructor no trae esta tarjeta: se crea aquí con las mismas clases del diseño.
-const TIPOS_CON_PLANTILLA = ['Selección múltiple'];
+// El formato de cada contenido está documentado en servidor_admin/plantillas.py.
 const MAX_OPCIONES = 4;
+const MAX_GRUPOS = 4;
+const MAX_ELEMENTOS = 12;
+const MAX_PAREJAS = 6;
+const MAX_PALABRAS = 10;
+const MAX_PARES = 8;
 
-function crearEditorContenido(actividad, catalogo) {
-  const enApp = Boolean(actividad?.en_app);
-  const preguntas = structuredClone(actividad?.contenido?.preguntas || []);
-  const preguntaNueva = () => ({
-    enunciado: '', audio: null,
-    opciones: [{ texto: '', imagen: null, correcta: true }, { texto: '', imagen: null, correcta: false }]
-  });
-
-  const filaPrincipal = $('#resourceGrid').closest('.row');
-  const aviso = el('div', 'notice mt-4');
-  aviso.append(icono('bi-info-circle'), el('div', '', 'La app todavía no tiene plantilla para este tipo de actividad: guárdala como borrador. Por ahora se pueden publicar actividades de tipo Selección múltiple.'));
-  const tarjeta = el('div', 'card mt-4');
-  const cabecera = el('div', 'card-header d-flex justify-content-between align-items-center flex-wrap gap-2');
-  const titulos = el('div');
-  const titulo = el('h2', 'card-title');
-  titulo.append(icono('bi-ui-checks-grid me-2 text-primary'), 'Contenido');
-  titulos.append(titulo, el('span', 'small text-secondary', 'Preguntas que verá el niño. Marca la respuesta correcta de cada una.'));
-  const botonAgregar = el('button', 'btn btn-sm btn-soft');
-  botonAgregar.type = 'button';
-  botonAgregar.append(icono('bi-plus-lg me-1'), 'Agregar pregunta');
-  cabecera.append(titulos, botonAgregar);
-  const lista = el('div', 'card-body p-4');
-  tarjeta.append(cabecera, lista);
-  filaPrincipal.after(aviso, tarjeta);
-
+// Controles compartidos por los editores. `ctx` trae el catálogo de recursos y la materia elegida.
+function crearControles(ctx) {
   // Imágenes y audios de la carpeta de la materia elegida, más los generales de la app
   const recursosDe = tipo => {
     const carpeta = `actividades/${CARPETA_MATERIA[$('#actMateria').value]}`;
-    return catalogo.filter(r => r.tipo === tipo && r.compatible && (r.carpeta === carpeta || r.carpeta === 'app/general'));
+    return ctx.catalogo.filter(r => r.tipo === tipo && r.compatible && (r.carpeta === carpeta || r.carpeta === 'app/general'));
   };
   const selectRecurso = (tipo, elegido, vacio) => {
     const select = el('select', 'form-select form-select-sm');
     const opciones = recursosDe(tipo);
-    const actual = catalogo.find(r => r.id === elegido);
+    const actual = ctx.catalogo.find(r => r.id === elegido);
     if (actual && !opciones.includes(actual)) opciones.unshift(actual); // conserva lo ya elegido
     select.append(el('option', '', vacio), ...opciones.map(r => {
       const op = el('option', '', r.nombre);
@@ -492,95 +474,307 @@ function crearEditorContenido(actividad, catalogo) {
     select.value = elegido ?? '';
     return select;
   };
+  const texto = (objeto, clave, marcador, maximo, clases = 'form-control form-control-sm') => {
+    const input = el('input', clases);
+    input.maxLength = maximo;
+    input.placeholder = marcador;
+    input.value = objeto[clave] || '';
+    // Los campos pequeños van en filas flexibles: se estiran y los selectores conservan su ancho
+    if (clases.includes('form-control-sm')) Object.assign(input.style, { flex: '1 1 130px', width: 'auto', minWidth: '110px' });
+    input.addEventListener('input', () => { objeto[clave] = input.value; });
+    return input;
+  };
+  // Lista de imágenes con su vista previa al lado
+  const imagen = (objeto, clave = 'imagen', vacio = 'Sin imagen') => {
+    const caja = el('div', 'd-flex align-items-center gap-2 flex-shrink-0');
+    const vista = el('span', 'thumb-sm flex-shrink-0');
+    const pintar = () => {
+      const recurso = ctx.catalogo.find(r => r.id === objeto[clave]);
+      vista.replaceChildren(...(recurso ? miniatura(recurso, 'thumb-sm').childNodes : []));
+    };
+    const select = selectRecurso('Imagen', objeto[clave], vacio);
+    select.style.width = '160px';
+    select.addEventListener('change', () => { objeto[clave] = select.value ? Number(select.value) : null; pintar(); });
+    pintar();
+    caja.append(vista, select);
+    return caja;
+  };
+  const audio = (objeto, vacio) => {
+    const select = selectRecurso('Audio', objeto.audio, vacio);
+    select.addEventListener('change', () => { objeto.audio = select.value ? Number(select.value) : null; });
+    return select;
+  };
+  const quitar = (etiqueta, accion, deshabilitado = false) => {
+    const boton = el('button', 'btn btn-sm btn-light');
+    boton.type = 'button';
+    boton.setAttribute('aria-label', etiqueta);
+    boton.title = etiqueta;
+    boton.appendChild(icono('bi-x-lg'));
+    boton.disabled = deshabilitado;
+    boton.addEventListener('click', accion);
+    return boton;
+  };
+  const boton = (etiqueta, accion, clases = 'btn btn-sm btn-soft') => {
+    const b = el('button', clases);
+    b.type = 'button';
+    b.append(icono('bi-plus-lg me-1'), etiqueta);
+    b.addEventListener('click', accion);
+    return b;
+  };
+  const campo = (etiqueta, control, columnas) => {
+    const col = el('div', columnas);
+    col.append(el('label', 'form-label small mb-1', etiqueta), control);
+    return col;
+  };
+  const seccion = titulo => el('div', 'small fw-semibold mb-2 mt-3', titulo);
+  return { selectRecurso, texto, imagen, audio, quitar, boton, campo, seccion };
+}
 
-  const render = () => {
-    lista.replaceChildren();
-    if (!preguntas.length) lista.appendChild(el('p', 'text-secondary mb-0', 'Todavía no hay preguntas. Usa «Agregar pregunta».'));
-    preguntas.forEach((p, i) => {
-      const bloque = el('div', 'border rounded-4 p-3 mb-3');
-      const encabezado = el('div', 'd-flex justify-content-between align-items-center mb-2');
-      const quitar = el('button', 'btn btn-sm btn-outline-danger', 'Quitar pregunta');
-      quitar.type = 'button';
-      quitar.addEventListener('click', () => { preguntas.splice(i, 1); render(); });
-      encabezado.append(el('span', 'fw-bold', `Pregunta ${i + 1}`), quitar);
+// Una plantilla por tipo: `vacio` (contenido inicial), `agregar` (botón del encabezado),
+// `resumen` (texto del resumen antes de publicar) y `pintar` (dibuja el contenido en la tarjeta).
+function crearPlantillas(c, repintar) {
+  const bloque = (titulo, alQuitar, etiqueta) => {
+    const caja = el('div', 'border rounded-4 p-3 mb-3');
+    const encabezado = el('div', 'd-flex justify-content-between align-items-center mb-2');
+    const quitar = el('button', 'btn btn-sm btn-outline-danger', etiqueta);
+    quitar.type = 'button';
+    quitar.addEventListener('click', alQuitar);
+    encabezado.append(el('span', 'fw-bold', titulo), quitar);
+    caja.appendChild(encabezado);
+    return caja;
+  };
+  const vacioMensaje = texto => el('p', 'text-secondary mb-0', texto);
+  const contar = (n, singular, varios) => plural(n, singular, varios);
 
-      const fila = el('div', 'row g-3 mb-3');
-      const colTexto = el('div', 'col-md-8');
-      const enunciado = el('input', 'form-control');
-      enunciado.maxLength = 200;
-      enunciado.placeholder = 'Ej. ¿Cuál de estos es una fruta?';
-      enunciado.value = p.enunciado;
-      enunciado.addEventListener('input', () => { p.enunciado = enunciado.value; });
-      colTexto.append(el('label', 'form-label', 'Enunciado'), enunciado);
-      const colAudio = el('div', 'col-md-4');
-      const audio = selectRecurso('Audio', p.audio, 'Sin audio');
-      audio.addEventListener('change', () => { p.audio = audio.value ? Number(audio.value) : null; });
-      colAudio.append(el('label', 'form-label', 'Audio de la pregunta (opcional)'), audio);
-      fila.append(colTexto, colAudio);
-
-      const opciones = el('div');
-      p.opciones.forEach((o, j) => {
-        const filaOpcion = el('div', 'd-flex align-items-center gap-2 mb-2');
-        const correcta = el('input', 'form-check-input mt-0');
-        correcta.type = 'radio';
-        correcta.name = `correcta-${i}`;
-        correcta.checked = o.correcta;
-        correcta.title = 'Respuesta correcta';
-        correcta.setAttribute('aria-label', 'Respuesta correcta');
-        correcta.addEventListener('change', () => p.opciones.forEach((otra, k) => { otra.correcta = k === j; }));
-        const texto = el('input', 'form-control form-control-sm');
-        texto.maxLength = 60;
-        texto.placeholder = `Opción ${j + 1}`;
-        texto.value = o.texto;
-        texto.addEventListener('input', () => { o.texto = texto.value; });
-        const vista = el('span', 'thumb-sm flex-shrink-0');
-        const pintarVista = () => {
-          const recurso = catalogo.find(r => r.id === o.imagen);
-          vista.replaceChildren(...(recurso ? miniatura(recurso, 'thumb-sm').childNodes : []));
-        };
-        const imagen = selectRecurso('Imagen', o.imagen, 'Sin imagen');
-        imagen.style.maxWidth = '220px';
-        imagen.addEventListener('change', () => { o.imagen = imagen.value ? Number(imagen.value) : null; pintarVista(); });
-        pintarVista();
-        const borrar = el('button', 'btn btn-sm btn-light');
-        borrar.type = 'button';
-        borrar.setAttribute('aria-label', 'Quitar opción');
-        borrar.appendChild(icono('bi-x-lg'));
-        borrar.disabled = p.opciones.length <= 2;
-        borrar.addEventListener('click', () => {
-          p.opciones.splice(j, 1);
-          if (!p.opciones.some(x => x.correcta)) p.opciones[0].correcta = true;
-          render();
+  const preguntas = (audioObligatorio) => ({
+    vacio: () => ({ preguntas: [] }),
+    ayuda: audioObligatorio
+      ? 'El niño escucha el audio y elige la respuesta. Cada pregunta necesita un audio; marca la respuesta correcta.'
+      : 'Preguntas que verá el niño. Marca la respuesta correcta de cada una.',
+    agregar: 'Agregar pregunta',
+    nuevo: d => d.preguntas.push({
+      enunciado: '', audio: null,
+      opciones: [{ texto: '', imagen: null, correcta: true }, { texto: '', imagen: null, correcta: false }]
+    }),
+    resumen: d => contar(d.preguntas.length, 'pregunta', 'preguntas'),
+    pintar(d, lista) {
+      if (!d.preguntas.length) lista.appendChild(vacioMensaje('Todavía no hay preguntas. Usa «Agregar pregunta».'));
+      d.preguntas.forEach((p, i) => {
+        const caja = bloque(`Pregunta ${i + 1}`, () => { d.preguntas.splice(i, 1); repintar(); }, 'Quitar pregunta');
+        const fila = el('div', 'row g-3 mb-3');
+        fila.append(
+          c.campo('Enunciado', c.texto(p, 'enunciado', audioObligatorio ? 'Ej. ¿Qué animal escuchaste?' : 'Ej. ¿Cuál de estos es una fruta?', 200, 'form-control'), 'col-md-8'),
+          c.campo(audioObligatorio ? 'Audio (obligatorio)' : 'Audio de la pregunta (opcional)',
+            c.audio(p, audioObligatorio ? 'Elige un audio' : 'Sin audio'), 'col-md-4')
+        );
+        const opciones = el('div');
+        p.opciones.forEach((o, j) => {
+          const filaOpcion = el('div', 'd-flex align-items-center gap-2 mb-2');
+          const correcta = el('input', 'form-check-input mt-0');
+          correcta.type = 'radio';
+          correcta.name = `correcta-${i}`;
+          correcta.checked = o.correcta;
+          correcta.title = 'Respuesta correcta';
+          correcta.setAttribute('aria-label', 'Respuesta correcta');
+          correcta.addEventListener('change', () => p.opciones.forEach((otra, k) => { otra.correcta = k === j; }));
+          const quitarOpcion = c.quitar('Quitar opción', () => {
+            p.opciones.splice(j, 1);
+            if (!p.opciones.some(x => x.correcta)) p.opciones[0].correcta = true;
+            repintar();
+          }, p.opciones.length <= 2);
+          filaOpcion.append(correcta, c.texto(o, 'texto', `Opción ${j + 1}`, 60), c.imagen(o), quitarOpcion);
+          opciones.appendChild(filaOpcion);
         });
-        filaOpcion.append(correcta, texto, vista, imagen, borrar);
-        opciones.appendChild(filaOpcion);
+        if (p.opciones.length < MAX_OPCIONES) {
+          const agregar = c.boton('Agregar opción', () => { p.opciones.push({ texto: '', imagen: null, correcta: false }); repintar(); });
+          agregar.classList.add('mt-1');
+          opciones.appendChild(agregar);
+        }
+        caja.append(fila, el('div', 'small fw-semibold mb-2', 'Opciones (marca la correcta)'), opciones);
+        lista.appendChild(caja);
       });
-      if (p.opciones.length < MAX_OPCIONES) {
-        const agregar = el('button', 'btn btn-sm btn-soft mt-1');
-        agregar.type = 'button';
-        agregar.append(icono('bi-plus-lg me-1'), 'Agregar opción');
-        agregar.addEventListener('click', () => { p.opciones.push({ texto: '', imagen: null, correcta: false }); render(); });
-        opciones.appendChild(agregar);
+    }
+  });
+
+  const clasificar = {
+    vacio: () => ({
+      grupos: [{ nombre: '', imagen: null }, { nombre: '', imagen: null }],
+      elementos: []
+    }),
+    ayuda: 'El niño arrastra cada elemento al grupo al que pertenece (por ejemplo, vivo o no vivo).',
+    agregar: 'Agregar elemento',
+    nuevo: d => { if (d.elementos.length < MAX_ELEMENTOS) d.elementos.push({ texto: '', imagen: null, grupo: null }); },
+    resumen: d => `${contar(d.grupos.length, 'grupo', 'grupos')} · ${contar(d.elementos.length, 'elemento', 'elementos')}`,
+    pintar(d, lista) {
+      lista.appendChild(c.seccion(`Grupos (2 a ${MAX_GRUPOS})`));
+      d.grupos.forEach((g, i) => {
+        const fila = el('div', 'd-flex align-items-center gap-2 mb-2');
+        const quitar = c.quitar('Quitar grupo', () => {
+          d.grupos.splice(i, 1);
+          // Los elementos de ese grupo quedan sin grupo y los demás conservan el suyo
+          d.elementos.forEach(e => {
+            if (e.grupo === i) e.grupo = null;
+            else if (e.grupo > i) e.grupo -= 1;
+          });
+          repintar();
+        }, d.grupos.length <= 2);
+        const nombre = c.texto(g, 'nombre', 'Ej. Vivo', 40);
+        nombre.addEventListener('change', repintar); // al terminar de escribir, la lista de grupos de los elementos se actualiza
+        fila.append(el('span', 'small text-secondary', `${i + 1}.`), nombre, c.imagen(g), quitar);
+        lista.appendChild(fila);
+      });
+      if (d.grupos.length < MAX_GRUPOS) {
+        lista.appendChild(c.boton('Agregar grupo', () => { d.grupos.push({ nombre: '', imagen: null }); repintar(); }));
       }
-      bloque.append(encabezado, fila, el('div', 'small fw-semibold mb-2', 'Opciones (marca la correcta)'), opciones);
-      lista.appendChild(bloque);
-    });
+
+      lista.appendChild(c.seccion(`Elementos (hasta ${MAX_ELEMENTOS}) y el grupo al que pertenece cada uno`));
+      if (!d.elementos.length) lista.appendChild(vacioMensaje('Todavía no hay elementos. Usa «Agregar elemento».'));
+      d.elementos.forEach((e, i) => {
+        const fila = el('div', 'd-flex align-items-center gap-2 mb-2 flex-wrap');
+        const grupo = el('select', 'form-select form-select-sm');
+        grupo.style.width = '160px';
+        grupo.append(el('option', '', 'Elige el grupo'), ...d.grupos.map((g, k) => {
+          const op = el('option', '', g.nombre.trim() || `Grupo ${k + 1}`);
+          op.value = k;
+          return op;
+        }));
+        grupo.value = e.grupo ?? '';
+        grupo.addEventListener('change', () => { e.grupo = grupo.value === '' ? null : Number(grupo.value); });
+        fila.append(c.texto(e, 'texto', 'Ej. Perro', 40), c.imagen(e), grupo,
+          c.quitar('Quitar elemento', () => { d.elementos.splice(i, 1); repintar(); }));
+        lista.appendChild(fila);
+      });
+    }
   };
 
-  const usaPlantilla = () => !enApp && TIPOS_CON_PLANTILLA.includes($('#actTipo').value);
-  const actualizar = () => {
-    tarjeta.classList.toggle('d-none', !usaPlantilla());
-    aviso.classList.toggle('d-none', enApp || usaPlantilla());
+  const emparejar = {
+    vacio: () => ({ parejas: [] }),
+    ayuda: 'El niño arrastra cada elemento hasta su pareja (por ejemplo, un número hasta esa cantidad de objetos).',
+    agregar: 'Agregar pareja',
+    nuevo: d => { if (d.parejas.length < MAX_PAREJAS) d.parejas.push({ elemento: { texto: '', imagen: null }, destino: { texto: '', imagen: null } }); },
+    resumen: d => contar(d.parejas.length, 'pareja', 'parejas'),
+    pintar(d, lista) {
+      if (!d.parejas.length) lista.appendChild(vacioMensaje('Todavía no hay parejas. Usa «Agregar pareja».'));
+      d.parejas.forEach((p, i) => {
+        const caja = bloque(`Pareja ${i + 1}`, () => { d.parejas.splice(i, 1); repintar(); }, 'Quitar pareja');
+        const fila = el('div', 'row g-3');
+        for (const [lado, titulo] of [['elemento', 'Elemento que se arrastra'], ['destino', 'Destino (su pareja)']]) {
+          const columna = el('div', 'col-md-6');
+          const controles = el('div', 'd-flex align-items-center gap-2');
+          controles.append(c.texto(p[lado], 'texto', 'Texto', 40), c.imagen(p[lado]));
+          columna.append(el('label', 'form-label small mb-1', titulo), controles);
+          fila.appendChild(columna);
+        }
+        caja.appendChild(fila);
+        lista.appendChild(caja);
+      });
+    }
   };
-  botonAgregar.addEventListener('click', () => { preguntas.push(preguntaNueva()); render(); });
-  $('#actTipo').addEventListener('change', actualizar);
-  $('#actMateria').addEventListener('change', render);
-  render();
-  actualizar();
+
+  const silabas = {
+    vacio: () => ({ palabras: [] }),
+    ayuda: 'El niño ordena las sílabas para armar la palabra. Escríbelas en orden, separadas por guion.',
+    agregar: 'Agregar palabra',
+    nuevo: d => { if (d.palabras.length < MAX_PALABRAS) d.palabras.push({ silabas: [], imagen: null, audio: null }); },
+    resumen: d => contar(d.palabras.length, 'palabra', 'palabras'),
+    pintar(d, lista) {
+      if (!d.palabras.length) lista.appendChild(vacioMensaje('Todavía no hay palabras. Usa «Agregar palabra».'));
+      d.palabras.forEach((p, i) => {
+        const caja = bloque(`Palabra ${i + 1}`, () => { d.palabras.splice(i, 1); repintar(); }, 'Quitar palabra');
+        const escritas = el('input', 'form-control');
+        escritas.maxLength = 60;
+        escritas.placeholder = 'Ej. ma-ri-po-sa';
+        escritas.value = p.silabas.join('-');
+        escritas.addEventListener('input', () => { p.silabas = escritas.value.split(/[-\s]+/).filter(Boolean); });
+        const fila = el('div', 'row g-3');
+        fila.append(
+          c.campo('Sílabas en orden (2 a 6)', escritas, 'col-md-4'),
+          c.campo('Imagen de la palabra (opcional)', c.imagen(p), 'col-md-4'),
+          c.campo('Audio (opcional)', c.audio(p, 'Sin audio'), 'col-md-4')
+        );
+        caja.appendChild(fila);
+        lista.appendChild(caja);
+      });
+    }
+  };
+
+  const memory = {
+    vacio: () => ({ pares: [] }),
+    ayuda: 'Cada par genera dos cartas. Con imagen y texto, una carta muestra la imagen y la otra el texto; con uno solo, las dos cartas son iguales.',
+    agregar: 'Agregar par',
+    nuevo: d => { if (d.pares.length < MAX_PARES) d.pares.push({ texto: '', imagen: null }); },
+    resumen: d => `${contar(d.pares.length, 'par', 'pares')} (${d.pares.length * 2} cartas)`,
+    pintar(d, lista) {
+      if (!d.pares.length) lista.appendChild(vacioMensaje('Todavía no hay pares. Usa «Agregar par».'));
+      d.pares.forEach((p, i) => {
+        const fila = el('div', 'd-flex align-items-center gap-2 mb-2 flex-wrap');
+        fila.append(el('span', 'fw-bold small', `Par ${i + 1}`), c.texto(p, 'texto', 'Ej. Dog', 30), c.imagen(p),
+          c.quitar('Quitar par', () => { d.pares.splice(i, 1); repintar(); }));
+        lista.appendChild(fila);
+      });
+    }
+  };
 
   return {
-    contenido: () => (usaPlantilla() ? { preguntas } : null),
-    cantidad: () => (usaPlantilla() ? preguntas.length : null)
+    'Selección múltiple': preguntas(false),
+    'Comprensión auditiva': preguntas(true),
+    'Arrastrar': clasificar,
+    'Arrastrar y soltar': emparejar,
+    'Ordenar sílabas': silabas,
+    'Memory match': memory
+  };
+}
+
+function crearEditorContenido(actividad, catalogo) {
+  const enApp = Boolean(actividad?.en_app);
+  const filaPrincipal = $('#resourceGrid').closest('.row');
+  const tarjeta = el('div', 'card mt-4');
+  const cabecera = el('div', 'card-header d-flex justify-content-between align-items-center flex-wrap gap-2');
+  const titulos = el('div');
+  const titulo = el('h2', 'card-title');
+  titulo.append(icono('bi-ui-checks-grid me-2 text-primary'), 'Contenido');
+  const ayuda = el('span', 'small text-secondary');
+  titulos.append(titulo, ayuda);
+  const botonAgregar = el('button', 'btn btn-sm btn-soft');
+  botonAgregar.type = 'button';
+  cabecera.append(titulos, botonAgregar);
+  const lista = el('div', 'card-body p-4');
+  tarjeta.append(cabecera, lista);
+  filaPrincipal.after(tarjeta);
+
+  let plantillas;
+  const tipo = () => $('#actTipo').value;
+  const usaPlantilla = () => !enApp && tipo() in plantillas;
+  // El contenido de cada tipo se conserva aparte: cambiar de tipo y volver no borra lo escrito
+  const datos = {};
+  const contenidoDe = nombre => {
+    if (!datos[nombre]) {
+      datos[nombre] = nombre === actividad?.tipo && actividad.contenido
+        ? structuredClone(actividad.contenido)
+        : plantillas[nombre].vacio();
+    }
+    return datos[nombre];
+  };
+
+  const repintar = () => {
+    tarjeta.classList.toggle('d-none', !usaPlantilla());
+    if (!usaPlantilla()) return;
+    const plantilla = plantillas[tipo()];
+    ayuda.textContent = plantilla.ayuda;
+    botonAgregar.replaceChildren(icono('bi-plus-lg me-1'), plantilla.agregar);
+    lista.replaceChildren();
+    plantilla.pintar(contenidoDe(tipo()), lista);
+  };
+  plantillas = crearPlantillas(crearControles({ catalogo }), repintar);
+
+  botonAgregar.addEventListener('click', () => { plantillas[tipo()].nuevo(contenidoDe(tipo())); repintar(); });
+  $('#actTipo').addEventListener('change', repintar);
+  $('#actMateria').addEventListener('change', repintar);
+  repintar();
+
+  return {
+    contenido: () => (usaPlantilla() ? contenidoDe(tipo()) : null),
+    resumen: () => (usaPlantilla() ? plantillas[tipo()].resumen(contenidoDe(tipo())) : null)
   };
 }
 
@@ -726,16 +920,15 @@ async function iniciarConstructor() {
     list.replaceChildren();
     selected.forEach(recurso => list.appendChild(el('li', '', `${recurso.nombre} · ${recurso.tipo}`)));
 
-    // Fila "Preguntas" en el resumen (solo para actividades con plantilla)
-    let filaPreguntas = $('#resPreguntas');
-    if (!filaPreguntas) {
+    // Fila "Contenido" en el resumen (solo para actividades con plantilla)
+    let filaContenido = $('#resContenido');
+    if (!filaContenido) {
       const estado = $('#resEstado').closest('dd').previousElementSibling;
-      filaPreguntas = el('dd', 'col-7');
-      filaPreguntas.id = 'resPreguntas';
-      estado.before(el('dt', 'col-5', 'Preguntas'), filaPreguntas);
+      filaContenido = el('dd', 'col-7');
+      filaContenido.id = 'resContenido';
+      estado.before(el('dt', 'col-5', 'Contenido'), filaContenido);
     }
-    const cantidad = editor.cantidad();
-    filaPreguntas.textContent = cantidad === null ? 'No aplica (pantalla propia de la app)' : plural(cantidad, 'pregunta', 'preguntas');
+    filaContenido.textContent = editor.resumen() ?? 'No aplica (pantalla propia de la app)';
 
     const [equipos, nuevos] = $$('#modalResumen .bg-light > .d-flex');
     const [eqTitulo, eqValor] = $$('span', equipos);

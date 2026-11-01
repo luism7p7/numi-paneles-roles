@@ -43,6 +43,16 @@ def es_captura(relativa):
     return bool(CAPTURAS.search(relativa))
 
 
+def recursos_en(contenido):
+    """Ids de las imágenes y audios que usa el contenido de una actividad (cualquier plantilla)."""
+    if isinstance(contenido, dict):
+        propios = {v for k, v in contenido.items() if k in ("imagen", "audio") and isinstance(v, int)}
+        return propios.union(*(recursos_en(v) for v in contenido.values()))
+    if isinstance(contenido, list):
+        return set().union(*(recursos_en(v) for v in contenido))
+    return set()
+
+
 def quitar_capturas(cur, uploads):
     """Borra de Recursos (y del disco) las capturas ya importadas que ninguna actividad usa."""
     cur.execute("SELECT id, archivo FROM recursos WHERE archivo LIKE 'app/%%'")
@@ -52,8 +62,7 @@ def quitar_capturas(cur, uploads):
     cur.execute("SELECT contenido FROM actividades WHERE contenido IS NOT NULL")
     usados = set()
     for (contenido,) in cur.fetchall():
-        for p in json.loads(contenido)["preguntas"]:
-            usados |= {p.get("audio")} | {o.get("imagen") for o in p["opciones"]}
+        usados |= recursos_en(json.loads(contenido))
     cur.execute("SELECT DISTINCT recurso_id FROM actividad_recurso")
     usados |= {fila[0] for fila in cur.fetchall()}
 

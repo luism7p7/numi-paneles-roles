@@ -4,7 +4,7 @@ import json
 
 from flask import Blueprint, abort, jsonify, request, session
 
-from . import recursos
+from . import plantillas, recursos
 from .db import confirmar, consultar, ejecutar
 from .utilidades import ErrorDeDatos, entero, fecha_corta, slug, texto
 
@@ -12,13 +12,6 @@ bp = Blueprint("actividades", __name__)
 
 TIPOS = ("Arrastrar", "Arrastrar y soltar", "Ordenar sílabas", "Selección múltiple",
          "Comprensión auditiva", "Memory match")
-
-# Tipos que la app sabe jugar con una plantilla genérica (el contenido lo pone el panel).
-# Los demás tipos solo existen como pantallas programadas en la app (en_app).
-PLANTILLAS = {"Selección múltiple"}
-
-MAX_PREGUNTAS = 20
-MAX_OPCIONES = 4
 
 # "Veces resuelta" = suma de los intentos que guardó la app para esa actividad.
 # progreso.actividad guarda el NOMBRE de la actividad, igual que la app.
@@ -72,64 +65,6 @@ def registrar(actividad_id, nombre, cambio, tipo):
     )
 
 
-def id_recurso(valor):
-    return None if valor in (None, "") else entero(valor, "el recurso", 1, 10**9)
-
-
-def validar_contenido(contenido, completo):
-    """Contenido de Selección múltiple. Devuelve (contenido_limpio, {id_recurso: tipo_esperado}).
-
-    {"preguntas": [{"enunciado": "...", "audio": 12,
-                    "opciones": [{"texto": "...", "imagen": 34, "correcta": true}, ...]}]}
-
-    Un borrador puede estar incompleto; para publicar (completo=True) todo debe estar bien.
-    """
-    if contenido is None:
-        contenido = {"preguntas": []}
-    if not isinstance(contenido, dict) or not isinstance(contenido.get("preguntas"), list):
-        raise ErrorDeDatos("El contenido de la actividad no es válido.")
-    preguntas = contenido["preguntas"]
-    if len(preguntas) > MAX_PREGUNTAS:
-        raise ErrorDeDatos(f"Una actividad puede tener máximo {MAX_PREGUNTAS} preguntas.")
-    if completo and not preguntas:
-        raise ErrorDeDatos("Agrega al menos una pregunta antes de publicar.")
-
-    limpias, usados = [], {}
-    for n, pregunta in enumerate(preguntas, start=1):
-        opciones = pregunta.get("opciones") if isinstance(pregunta, dict) else None
-        if not isinstance(opciones, list) or len(opciones) > MAX_OPCIONES:
-            raise ErrorDeDatos(f"La pregunta {n} debe tener máximo {MAX_OPCIONES} opciones.")
-        enunciado = str(pregunta.get("enunciado") or "").strip()
-        if len(enunciado) > 200:
-            raise ErrorDeDatos(f"El enunciado de la pregunta {n} es muy largo (máximo 200 caracteres).")
-        audio = id_recurso(pregunta.get("audio"))
-        if audio:
-            usados[audio] = "Audio"
-        limpias_opciones = []
-        for opcion in opciones:
-            if not isinstance(opcion, dict):
-                raise ErrorDeDatos(f"Las opciones de la pregunta {n} no son válidas.")
-            imagen = id_recurso(opcion.get("imagen"))
-            if imagen:
-                usados[imagen] = "Imagen"
-            limpias_opciones.append({
-                "texto": str(opcion.get("texto") or "").strip()[:60],
-                "imagen": imagen,
-                "correcta": opcion.get("correcta") is True,
-            })
-        if completo:
-            if not enunciado:
-                raise ErrorDeDatos(f"Escribe el enunciado de la pregunta {n}.")
-            if len(limpias_opciones) < 2:
-                raise ErrorDeDatos(f"La pregunta {n} necesita al menos 2 opciones.")
-            if any(not o["texto"] and not o["imagen"] for o in limpias_opciones):
-                raise ErrorDeDatos(f"Cada opción de la pregunta {n} necesita un texto o una imagen.")
-            if sum(o["correcta"] for o in limpias_opciones) != 1:
-                raise ErrorDeDatos(f"Marca una sola respuesta correcta en la pregunta {n}.")
-        limpias.append({"enunciado": enunciado, "audio": audio, "opciones": limpias_opciones})
-    return {"preguntas": limpias}, usados
-
-
 def validar(datos, actual=None):
     nombre = texto(datos, "nombre", "el nombre de la actividad", 120)
     repetida = consultar(
@@ -160,11 +95,10 @@ def validar(datos, actual=None):
     # Una actividad creada en el panel solo llega al celular si su tipo tiene plantilla en la app
     en_app = bool(actual and actual["en_app"])
     contenido, usados = None, {}
-    if tipo in PLANTILLAS and not en_app:
-        contenido, usados = validar_contenido(datos.get("contenido"), completo=estado == "Publicada")
+    if tipo in plantillas.PLANTILLAS and not en_app:
+        contenido, usados = plantillas.validar_contenido(tipo, datos.get("contenido"), completo=estado == "Publicada")
     elif estado == "Publicada" and not en_app:
-        raise ErrorDeDatos(f"La app todavía no tiene plantilla para «{tipo}». "
-                           "Guárdala como borrador o usa el tipo Selección múltiple.")
+        raise ErrorDeDatos(f"La app todavía no tiene plantilla para «{tipo}». Guárdala como borrador.")
 
     # Recursos: los marcados en la cuadrícula + los que usan las preguntas
     ids = {entero(i, "el recurso", 1, 10**9) for i in datos.get("recursos") or []} | set(usados)
