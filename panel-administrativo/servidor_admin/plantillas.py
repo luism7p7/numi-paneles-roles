@@ -140,9 +140,15 @@ def _clasificar(contenido, completo):
     if completo:
         if len(limpios_grupos) < 2:
             raise ErrorDeDatos("Agrega al menos 2 grupos antes de publicar.")
+        vistos = {}
         for n, grupo in enumerate(limpios_grupos, start=1):
             if not grupo["nombre"]:
                 raise ErrorDeDatos(f"Escribe el nombre del grupo {n}.")
+            clave = grupo["nombre"].casefold()
+            if clave in vistos:
+                raise ErrorDeDatos(f"Los grupos {vistos[clave]} y {n} se llaman igual («{grupo['nombre']}»): "
+                                   "el niño no podría saber cuál elegir. Cambia el nombre o quita uno.")
+            vistos[clave] = n
         if len(limpios) < len(limpios_grupos):
             raise ErrorDeDatos("Agrega al menos un elemento por cada grupo.")
         for n, elemento in enumerate(limpios, start=1):

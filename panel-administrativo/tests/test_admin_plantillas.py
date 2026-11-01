@@ -100,6 +100,12 @@ def test_arrastrar_exige_grupos_y_elementos_completos(admin):
         base | {"elementos": base["elementos"] + [{"texto": "Sol", "imagen": None, "grupo": 7}]},     # grupo inexistente
         base | {"grupos": base["grupos"] * 3},                                            # más de 4 grupos
     ]
+    # Dos grupos con el mismo nombre (aunque cambie la mayúscula) confunden al niño
+    repetidos = base | {"grupos": [{"nombre": "Vivo", "imagen": None}, {"nombre": " vivo ", "imagen": None}],
+                        "elementos": [{"texto": "Perro", "imagen": None, "grupo": 0}, {"texto": "Gato", "imagen": None, "grupo": 1}]}
+    resp = publicar(admin, "Arrastrar", repetidos)
+    assert resp.status_code == 400 and "se llaman igual" in resp.get_json()["error"]
+    assert publicar(admin, "Arrastrar", repetidos, estado="Borrador").status_code == 201  # un borrador puede estar a medias
     for contenido in casos:
         assert publicar(admin, "Arrastrar", contenido).status_code == 400, contenido
     # A medias sí se guarda como borrador, pero un grupo inexistente nunca
