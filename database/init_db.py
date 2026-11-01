@@ -349,7 +349,7 @@ def insertar_monitoreo(cur):
     )
     salida = io.StringIO()
     escritor = csv.writer(salida)
-    escritor.writerow(["Grado", "Estudiantes", "Actividades resueltas"])
+    escritor.writerow(["grado", "estudiantes", "actividades_resueltas"])
     escritor.writerows(cur.fetchall())
     cur.execute(
         "INSERT INTO informes (titulo, formato, contenido, creado_en) VALUES (%s, 'CSV', %s, %s)",
@@ -417,14 +417,6 @@ def migrar(nombre):
                 cur.execute("ALTER TABLE actividades ADD contenido JSON NULL AFTER en_app")
                 aplicados.append("actividades.contenido")
             cur.execute("ALTER TABLE recursos MODIFY tipo ENUM('Imagen', 'Audio', 'Video') NOT NULL")
-            cur.execute(
-                "SELECT column_name FROM information_schema.columns WHERE table_schema = %s AND table_name = 'servicios'",
-                (nombre,),
-            )
-            if "detalle" not in {fila[0] for fila in cur.fetchall()}:
-                cur.execute("ALTER TABLE servicios ADD detalle VARCHAR(200) NULL AFTER revisado_en")
-                aplicados.append("servicios.detalle")
-            cur.execute("ALTER TABLE informes MODIFY formato ENUM('CSV', 'PDF', 'XLSX') NOT NULL")
         con.commit()
     finally:
         con.close()

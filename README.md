@@ -16,7 +16,7 @@ Paneles web de **Numi**, la app educativa para niños de 1° a 5° de las instit
 | Base de datos | MySQL 8 con PyMySQL y SQL escrito a mano |
 | Front-end | HTML, Bootstrap 5 y JavaScript (`fetch` a la API de Flask) |
 | Archivos | openpyxl (Excel) y fpdf2 (PDF) |
-| Pruebas | pytest (113 pruebas) |
+| Pruebas | pytest (110 pruebas) |
 
 ## Cómo funciona
 
@@ -100,7 +100,7 @@ Cuentas de ejemplo (contraseña `Numi2026`):
 | Recursos | `GET /api/recursos`, `POST /api/recursos` (subir PNG/JPG/MP3) |
 | Instituciones | `GET/POST /api/instituciones`, `GET /api/instituciones/<id>` |
 | Usuarios | `GET/POST /api/usuarios`, `PUT /api/usuarios/<id>`, `PATCH /api/usuarios/<id>/estado`, `POST /api/usuarios/importar` |
-| Monitoreo técnico | `GET /api/monitoreo` (`?forzar=1` vuelve a comprobar los servicios), `POST /api/informes` (Excel), `GET /api/informes/<id>/descargar` |
+| Monitoreo técnico | `GET /api/monitoreo`, `POST /api/informes`, `GET /api/informes/<id>/descargar` |
 
 **Panel docente**
 
@@ -136,16 +136,6 @@ programar pantallas nuevas (el formato de cada contenido está en `servidor_admi
 | Memory match | encuentra los pares de cartas | `pares` |
 
 Un borrador puede estar incompleto; para publicar, el contenido se valida completo.
-
-## Monitoreo técnico
-
-Muestra si responden los dos servicios del backend de la app (**Servidor de la app**, que se comprueba con `/salud`, y
-**Contenido e IA**, con `/api/paquetes`), desde cuándo fallan y por qué. Se comprueba que el servidor contesta, no el
-estado de su base de datos. La dirección sale de `APP_API_URL` en el `.env` (en tu equipo: `http://127.0.0.1:8000`);
-si cambias el `.env`, reinicia el panel. *Descargar informe* crea un Excel con un resumen y la lista de equipos
-(los que llevan más de 7 días sin sincronizar, arriba).
-
-Si ya tenías la base creada, aplica los cambios sin borrar nada: `python database/init_db.py --migrar`.
 
 ## Usuarios
 

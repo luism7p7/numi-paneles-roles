@@ -317,8 +317,8 @@ async function iniciarInicio() {
       'Más de 7 días sin conexión', enlaceBoton('Ver', 'monitoreo.html')));
   }
   datos.servicios_caidos.forEach(s => {
-    acciones.push(itemAccion('bg-danger', `${s.nombre} sin respuesta (desde ${s.desde_texto.toLowerCase()})`,
-      s.afecta, enlaceBoton('Ver', 'monitoreo.html')));
+    acciones.push(itemAccion('bg-danger', `${s.nombre} sin responder desde las ${s.desde}`,
+      s.clave === 'contenido' ? 'Asistente de IA afectado' : 'La app no puede sincronizar el progreso', statusSpan('Crítico')));
   });
   $('.badge', cardAcciones).textContent = acciones.length;
   if (!acciones.length) acciones.push(itemAccion('bg-success', 'Todo en orden', 'No hay tareas pendientes.'));
@@ -1739,23 +1739,12 @@ async function iniciarHistorial() {
 
 /* ---------- Monitoreo técnico ---------- */
 function iniciarMonitoreo() {
-  const cardInformes = $('#cardInformes');
+  const cardInformes = $('.report-item').closest('.card');
   const cardEventos = $('.event-item').closest('.card');
-  $('#btnInforme').addEventListener('click', async ev => {
-    const boton = ev.currentTarget;
-    boton.disabled = true;
+  $('.topbar [data-toast]').addEventListener('click', async () => {
     const { ok, datos } = await api('/api/informes', { metodo: 'POST' });
-    boton.disabled = false;
     if (!ok) return mostrarError(datos);
-    showToast(`Informe listo: «${datos.titulo}». Se está descargando.`);
-    window.location.href = `/api/informes/${datos.id}/descargar`;
     cargarMonitoreo(cardInformes, cardEventos);
-  });
-  $('#btnComprobar').addEventListener('click', async ev => {
-    const boton = ev.currentTarget;
-    boton.disabled = true;
-    await cargarMonitoreo(cardInformes, cardEventos, true);
-    boton.disabled = false;
   });
   cargarMonitoreo(cardInformes, cardEventos);
 
@@ -1764,57 +1753,30 @@ function iniciarMonitoreo() {
   versiones.addEventListener('hidden.bs.collapse', () => { $('#btnVersiones').textContent = 'Ver versiones'; });
 }
 
-// Tarjeta de un servicio: qué es, si responde y, si no, desde cuándo, por qué y qué afecta
-function tarjetaServicio(s) {
-  const ESTADOS = {
-    true: ['text-success', 'bg-success', 'Operativo'],
-    false: ['text-danger', 'bg-danger', 'Sin respuesta'],
-    null: ['text-secondary', 'bg-secondary', 'Sin configurar']
-  };
-  const [texto, punto, etiqueta] = ESTADOS[s.operativo];
-  const col = el('div', 'col-lg-6');
-  const card = el('div', `card p-3 h-100${s.operativo === false ? ' border-danger-subtle' : ''}`);
-
-  const cabecera = el('div', 'd-flex justify-content-between align-items-start gap-2 mb-1');
-  const nombre = el('div', 'fw-semibold');
-  nombre.append(icono(`${s.clave === 'contenido' ? 'bi-robot' : 'bi-hdd-network'} me-2 text-secondary`), s.nombre);
-  const estado = el('div', `service-status ${texto} text-nowrap`);
-  estado.append(el('span', `pulse ${punto}`), ` ${etiqueta}`);
-  cabecera.append(nombre, estado);
-
-  const lineas = [];
-  if (s.operativo === false) {
-    lineas.push(['Sin respuesta desde', s.desde_texto]);
-    lineas.push(['Motivo', s.detalle]);
-    lineas.push(['Qué afecta', s.afecta]);
-  } else if (s.operativo === true) {
-    lineas.push(['Última comprobación', `${s.revisado} · ${s.detalle.toLowerCase()}`]);
-  } else {
-    lineas.push(['Estado', s.detalle]);
-  }
-  if (s.direccion) lineas.push(['Dirección consultada', s.direccion]);
-  const detalle = el('dl', 'row small mb-0 mt-2');
-  lineas.forEach(([titulo, valor]) => detalle.append(el('dt', 'col-sm-4 text-secondary fw-normal', titulo), el('dd', 'col-sm-8 mb-1', valor)));
-
-  card.append(cabecera, el('p', 'small text-secondary mb-0', s.descripcion), detalle);
-  col.appendChild(card);
-  return col;
-}
-
-async function cargarMonitoreo(cardInformes, cardEventos, forzar = false) {
-  const { ok, datos } = await api(`/api/monitoreo${forzar ? '?forzar=1' : ''}`);
+async function cargarMonitoreo(cardInformes, cardEventos) {
+  const { ok, datos } = await api('/api/monitoreo');
   if (!ok) return mostrarError(datos);
 
   const actualizado = $('.topbar-actions span.small');
   if (actualizado) actualizado.lastChild.textContent = `Actualizado a las ${datos.actualizado}`;
 
-  $('#servicios').replaceChildren(...datos.servicios.map(tarjetaServicio));
-  $('#statSin').textContent = datos.sin_sincronizar;
-  $('#statSinTexto').textContent = `de ${plural(datos.equipos_registrados, 'equipo registrado', 'equipos registrados')}: no enviaron su progreso en los últimos ${datos.dias_sin_sincronizar} días.`;
-  $('#statErr').textContent = datos.errores_24h;
-  $('#statErrTexto').textContent = datos.errores_24h
-    ? 'Eventos críticos o alertas del registro de eventos.'
-    : 'No hubo eventos críticos ni alertas en el registro.';
+  // Estado de los servicios del backend de la app
+  const ESTADOS = {
+    true: ['text-success', 'bg-success', 'Operativo'],
+    false: ['text-danger', 'bg-danger', 'Sin respuesta'],
+    null: ['text-secondary', 'bg-secondary', 'Sin configurar']
+  };
+  $$('.service-status').forEach((nodo, i) => {
+    const servicio = datos.servicios[i];
+    if (!servicio) return;
+    const [texto, punto, etiqueta] = ESTADOS[servicio.operativo];
+    nodo.className = `service-status ${texto}`;
+    nodo.replaceChildren(el('span', `pulse ${punto}`), ` ${etiqueta}`);
+    nodo.closest('.card').classList.toggle('border-danger-subtle', servicio.operativo === false);
+  });
+  const [sinSync, errores] = $$('.stat-value');
+  sinSync.textContent = datos.sin_sincronizar;
+  errores.textContent = datos.errores_24h;
 
   // Informes recientes
   $$('.report-item', cardInformes).forEach(n => n.remove());
@@ -1822,18 +1784,17 @@ async function cargarMonitoreo(cardInformes, cardEventos, forzar = false) {
   datos.informes.forEach(inf => {
     const item = el('div', 'report-item');
     const vista = el('span', 'thumb-sm');
-    vista.appendChild(icono(inf.formato === 'PDF' ? 'bi-filetype-pdf' : inf.formato === 'XLSX' ? 'bi-filetype-xlsx' : 'bi-filetype-csv'));
+    vista.appendChild(icono(inf.formato === 'PDF' ? 'bi-filetype-pdf' : 'bi-filetype-csv'));
     const info = el('div', 'flex-grow-1');
-    info.append(el('div', 'fw-semibold', inf.titulo), el('div', 'cell-sub', `${inf.formato === 'XLSX' ? 'Excel' : inf.formato} · ${inf.tamano} · ${inf.fecha}`));
+    info.append(el('div', 'fw-semibold', inf.titulo), el('div', 'cell-sub', `${inf.formato} · ${inf.tamano}`));
     const descargar = el('a', 'btn btn-sm btn-light');
     descargar.href = `/api/informes/${inf.id}/descargar`;
-    descargar.setAttribute('aria-label', `Descargar ${inf.titulo}`);
+    descargar.setAttribute('aria-label', 'Descargar');
     descargar.appendChild(icono('bi-download'));
     item.append(vista, info, descargar);
     pie.before(item);
   });
-  if (!datos.informes.length) pie.before(el('div', 'report-item text-secondary small', 'Todavía no hay informes. Usa «Descargar informe».'));
-  pie.textContent = `${plural(datos.equipos_registrados, 'equipo registrado', 'equipos registrados')} · ${datos.equipos_registrados - datos.sin_sincronizar} sincronizaron en los últimos ${datos.dias_sin_sincronizar} días.`;
+  pie.textContent = `Son ${datos.equipos} equipos con datos sincronizados.`;
 
   // Versiones de la app en uso
   const filas = datos.versiones.map(v => {
