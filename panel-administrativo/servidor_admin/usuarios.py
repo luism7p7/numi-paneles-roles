@@ -13,6 +13,8 @@ from .utilidades import CORREO_VALIDO, ErrorDeDatos, correo, entero, fecha_corta
 bp = Blueprint("usuarios", __name__)
 
 ROLES = ("Docente", "Administrador")
+# Las cuentas de administrador no se crean desde el panel: solo se pueden crear docentes
+MENSAJE_SOLO_DOCENTES = "Solo se pueden crear cuentas de docente. Las de administrador no se crean desde el panel."
 MAX_FILAS_IMPORTACION = 1000
 
 
@@ -122,6 +124,8 @@ def listar():
 @bp.post("/api/usuarios")
 def crear():
     v = validar(request.get_json(silent=True) or {})
+    if v["rol"] != "Docente":
+        raise ErrorDeDatos(MENSAJE_SOLO_DOCENTES)
     nuevo_id = ejecutar(
         """INSERT INTO usuarios (nombre, apellido, correo, rol, institucion_id, estado)
            VALUES (%s, %s, %s, %s, %s, 'Pendiente')""",
@@ -135,10 +139,12 @@ def crear():
 
 @bp.put("/api/usuarios/<int:usuario_id>")
 def editar(usuario_id):
-    buscar(usuario_id)
+    actual = buscar(usuario_id)
     v = validar(request.get_json(silent=True) or {}, usuario_id)
     if usuario_id == session["usuario_id"] and v["rol"] != "Administrador":
         raise ErrorDeDatos("No puedes quitarte a ti mismo el rol de administrador.")
+    if v["rol"] != actual["rol"]:
+        raise ErrorDeDatos("El rol de una cuenta no se puede cambiar.")
     ejecutar(
         "UPDATE usuarios SET nombre = %s, apellido = %s, correo = %s, rol = %s, institucion_id = %s WHERE id = %s",
         (v["nombre"], v["apellido"], v["correo"], v["rol"], v["institucion_id"], usuario_id),
@@ -211,9 +217,9 @@ def importar():
         raise ErrorDeDatos("Selecciona un archivo .csv o .json.")
     if not archivo.filename.lower().endswith((".csv", ".json")):
         raise ErrorDeDatos("El archivo debe ser .csv o .json.")
-    rol = request.form.get("rol")
-    if rol not in ROLES:
-        raise ErrorDeDatos("Elige un rol válido.")
+    rol = request.form.get("rol") or "Docente"
+    if rol != "Docente":
+        raise ErrorDeDatos(MENSAJE_SOLO_DOCENTES)
     inst_id = institucion_id(request.form.get("institucion"), rol)
 
     filas = leer_filas(archivo)

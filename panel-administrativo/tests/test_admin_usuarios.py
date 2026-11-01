@@ -7,6 +7,18 @@ def crear(admin, **cambios):
     return admin.post("/api/usuarios", json=datos)
 
 
+def crear_admin_en_la_base(admin, correo):
+    """Las cuentas de administrador ya no se crean por la API: se insertan directo, como en la instalación."""
+    from servidor_admin.db import ejecutar
+
+    with admin.application.app_context():
+        nuevo_id = ejecutar(
+            "INSERT INTO usuarios (nombre, apellido, correo, rol, estado) VALUES ('Admin', 'Prueba', %s, 'Administrador', 'Pendiente')",
+            (correo,),
+        )
+    return {"id": nuevo_id}
+
+
 def test_lista_con_pendientes_primero(admin):
     usuarios = admin.get("/api/usuarios").get_json()
     assert usuarios[0]["estado"] == "Pendiente"
@@ -25,7 +37,7 @@ def test_crear_queda_pendiente_y_valida(admin):
 
 
 def test_activar_genera_contrasena_temporal_que_sirve_para_entrar(admin, client):
-    nuevo = crear(admin, correo="admin2@medellin.gov.co", rol="Administrador", institucion="Todas").get_json()
+    nuevo = crear_admin_en_la_base(admin, "admin2@medellin.gov.co")
     resp = admin.patch(f"/api/usuarios/{nuevo['id']}/estado", json={"estado": "Activo"})
     temporal = resp.get_json()["password_temporal"]
     assert temporal and len(temporal) == 9
@@ -35,7 +47,7 @@ def test_activar_genera_contrasena_temporal_que_sirve_para_entrar(admin, client)
 
 
 def test_restablecer_contrasena(admin, client):
-    nuevo = crear(admin, correo="olvido@medellin.gov.co", rol="Administrador", institucion="Todas").get_json()
+    nuevo = crear_admin_en_la_base(admin, "olvido@medellin.gov.co")
     url = f"/api/usuarios/{nuevo['id']}/password-temporal"
     assert admin.post(url).status_code == 400  # todavía está Pendiente
     vieja = admin.patch(f"/api/usuarios/{nuevo['id']}/estado", json={"estado": "Activo"}).get_json()["password_temporal"]
@@ -149,6 +161,27 @@ def test_no_acepta_grupos_de_otra_institucion(admin):
 
 
 def test_administrador_no_tiene_grupos(admin):
-    _, grupos = grupos_de(admin, "IE Palmitas")
-    resp = crear(admin, correo="admin3@medellin.gov.co", rol="Administrador", institucion="Todas", grupos=[grupos[0]["id"]])
-    assert resp.status_code == 201 and resp.get_json()["grupos"] == []
+    carolina = next(u for u in admin.get("/api/usuarios").get_json() if u["correo"] == "cvelez@medellin.gov.co")
+    assert carolina["rol"] == "Administrador" and carolina["grupos"] == []
+
+
+def test_solo_se_crean_docentes(admin):
+    """Las cuentas de administrador no se crean desde el panel: ni a mano ni importando un archivo."""
+    resp = crear(admin, correo="otro-admin@medellin.gov.co", rol="Administrador", institucion="Todas")
+    assert resp.status_code == 400 and "docente" in resp.get_json()["error"].lower()
+    assert not any(u["correo"] == "otro-admin@medellin.gov.co" for u in admin.get("/api/usuarios").get_json())
+
+    contenido = b'[{"nombre": "Teo", "apellido": "Ruiz", "correo_institucional": "teo-admin@ie.edu.co"}]'
+    datos = {"rol": "Administrador", "institucion": "Todas", "archivo": (io.BytesIO(contenido), "admins.json")}
+    resp = admin.post("/api/usuarios/importar", data=datos, content_type="multipart/form-data")
+    assert resp.status_code == 400
+    assert not any(u["correo"] == "teo-admin@ie.edu.co" for u in admin.get("/api/usuarios").get_json())
+
+
+def test_el_rol_de_una_cuenta_no_se_cambia(admin):
+    docente = crear(admin, correo="sin-ascenso@ie.edu.co").get_json()
+    datos = {"nombre": "Ana", "apellido": "Pérez", "correo": "sin-ascenso@ie.edu.co", "rol": "Administrador",
+             "institucion": "Todas"}
+    resp = admin.put(f"/api/usuarios/{docente['id']}", json=datos)
+    assert resp.status_code == 400 and "rol" in resp.get_json()["error"].lower()
+    assert next(u for u in admin.get("/api/usuarios").get_json() if u["id"] == docente["id"])["rol"] == "Docente"

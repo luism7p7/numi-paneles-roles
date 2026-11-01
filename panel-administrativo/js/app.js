@@ -317,8 +317,8 @@ async function iniciarInicio() {
       'Más de 7 días sin conexión', enlaceBoton('Ver', 'monitoreo.html')));
   }
   datos.servicios_caidos.forEach(s => {
-    acciones.push(itemAccion('bg-danger', `${s.nombre} sin responder desde las ${s.desde}`,
-      s.clave === 'contenido' ? 'Asistente de IA afectado' : 'La app no puede sincronizar el progreso', statusSpan('Crítico')));
+    acciones.push(itemAccion('bg-danger', `${s.nombre} sin respuesta (desde ${s.desde_texto.toLowerCase()})`,
+      s.afecta, enlaceBoton('Ver', 'monitoreo.html')));
   });
   $('.badge', cardAcciones).textContent = acciones.length;
   if (!acciones.length) acciones.push(itemAccion('bg-success', 'Todo en orden', 'No hay tareas pendientes.'));
@@ -444,6 +444,242 @@ function miniatura(recurso, clase) {
   return nodo;
 }
 
+/* ---------- Selector de recursos (imágenes y audios) ---------- */
+// Ventana con buscador, filtros por materia y miniaturas grandes para elegir de TODO el catálogo.
+// Tiene dos modos: elegirUno (un campo del contenido de la actividad) y elegirVarios (los recursos de la actividad).
+const ETIQUETAS_CARPETA = {
+  'actividades/matematicas': 'Matemáticas', 'actividades/espanol': 'Español', 'actividades/ciencias': 'Ciencias naturales',
+  'actividades/sociales': 'Sociales', 'actividades/ingles': 'Inglés', 'app/general': 'General de la app'
+};
+
+function etiquetaCarpeta(carpeta) {
+  const nombre = ETIQUETAS_CARPETA[carpeta] || carpeta.replace(/^actividades\//, '');
+  return nombre.charAt(0).toUpperCase() + nombre.slice(1);
+}
+
+// "Botón_doméstico (1).png" → "boton domestico 1 png": se busca sin tildes, mayúsculas ni símbolos
+function paraBuscar(texto) {
+  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function crearSelectorRecursos(catalogo) {
+  const POR_TANDA = 60;
+  const indice = catalogo.map(r => ({ r, clave: paraBuscar(`${r.nombre} ${etiquetaCarpeta(r.carpeta)} ${r.tipo}`) }));
+  const carpetas = [...new Set(catalogo.map(r => r.carpeta))];
+  const e = {
+    modo: 'uno', tipo: '', tipoFijo: false, carpeta: '', limite: POR_TANDA, materia: '',
+    actual: null, seleccion: new Map(), alElegir: null, alCambiar: null
+  };
+  let reproductor = null;
+
+  // --- Estructura de la ventana
+  const modal = el('div', 'modal fade');
+  modal.tabIndex = -1;
+  modal.setAttribute('aria-hidden', 'true');
+  const contenido = el('div', 'modal-content');
+  modal.appendChild(el('div', 'modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable')).appendChild(contenido);
+
+  const cabecera = el('div', 'modal-header');
+  const titulos = el('div');
+  const titulo = el('h2', 'modal-title fs-5');
+  const subtitulo = el('p', 'small text-secondary mb-0');
+  titulos.append(titulo, subtitulo);
+  const cerrar = el('button', 'btn-close');
+  cerrar.type = 'button';
+  cerrar.setAttribute('data-bs-dismiss', 'modal');
+  cerrar.setAttribute('aria-label', 'Cerrar');
+  cabecera.append(titulos, cerrar);
+
+  const cuerpo = el('div', 'modal-body');
+  const barra = el('div', 'picker-barra');
+  const fila = el('div', 'picker-fila');
+  const caja = el('div', 'picker-busqueda');
+  const buscador = el('input', 'form-control');
+  buscador.type = 'search';
+  buscador.placeholder = 'Buscar por nombre: perro, cocodrilo, pantalla 3…';
+  buscador.setAttribute('aria-label', 'Buscar recurso');
+  caja.append(icono('bi-search'), buscador);
+  const grupoTipos = el('div', 'btn-group');
+  grupoTipos.setAttribute('role', 'group');
+  const botonesTipo = [['', 'Todo'], ['Imagen', 'Imágenes'], ['Audio', 'Audios']].map(([valor, texto]) => {
+    const boton = el('button', 'btn btn-sm', texto);
+    boton.type = 'button';
+    boton.dataset.valor = valor;
+    boton.addEventListener('click', () => { e.tipo = valor; e.limite = POR_TANDA; pintar(); });
+    return boton;
+  });
+  grupoTipos.append(...botonesTipo);
+  fila.append(caja, grupoTipos);
+  const chips = el('div', 'picker-chips');
+  barra.append(fila, chips);
+  const rejilla = el('div', 'picker-grid');
+  const pie = el('div', 'picker-pie');
+  cuerpo.append(barra, rejilla, pie);
+
+  const piePie = el('div', 'modal-footer');
+  const contador = el('span', 'me-auto small text-secondary');
+  const quitar = el('button', 'btn btn-outline-danger');
+  quitar.type = 'button';
+  const listo = el('button', 'btn');
+  listo.type = 'button';
+  listo.setAttribute('data-bs-dismiss', 'modal');
+  piePie.append(contador, quitar, listo);
+
+  contenido.append(cabecera, cuerpo, piePie);
+  document.body.appendChild(modal);
+  const ventana = new bootstrap.Modal(modal);
+
+  // --- Acciones
+  const escuchar = recurso => {
+    reproductor?.pause();
+    reproductor = new Audio(recurso.url);
+    reproductor.play().catch(() => showToast('No se pudo reproducir el audio.'));
+  };
+
+  const elegir = recurso => {
+    if (e.modo === 'uno') {
+      e.alElegir(recurso.id);
+      ventana.hide();
+      return;
+    }
+    const clave = String(recurso.id);
+    if (e.seleccion.has(clave)) e.seleccion.delete(clave);
+    else e.seleccion.set(clave, recurso);
+    e.alCambiar();
+    pintar();
+  };
+
+  const tarjeta = recurso => {
+    const elegido = e.modo === 'varios' ? e.seleccion.has(String(recurso.id)) : recurso.id === e.actual;
+    const nodo = el('div', `picker-card${elegido ? ' is-selected' : ''}${recurso.compatible ? '' : ' is-disabled'}`);
+    nodo.setAttribute('role', 'button');
+    nodo.tabIndex = recurso.compatible ? 0 : -1;
+    nodo.title = recurso.compatible
+      ? recurso.nombre
+      : `Disponible desde la v${recurso.version_minima}: ${recurso.equipos_incompatibles} equipos no lo mostrarían`;
+
+    const vista = el('div', 'picker-thumb');
+    if (recurso.tipo === 'Imagen' && recurso.url) {
+      const img = el('img');
+      img.src = recurso.url;
+      img.alt = '';
+      img.loading = 'lazy';
+      vista.appendChild(img);
+    } else {
+      vista.appendChild(icono(recurso.tipo === 'Audio' ? 'bi-music-note-beamed' : recurso.tipo === 'Video' ? 'bi-film' : 'bi-image'));
+    }
+    if (recurso.tipo === 'Audio' && recurso.url) {
+      const play = el('button', 'picker-play');
+      play.type = 'button';
+      play.title = 'Escuchar';
+      play.setAttribute('aria-label', `Escuchar ${recurso.nombre}`);
+      play.appendChild(icono('bi-play-fill'));
+      play.addEventListener('click', ev => { ev.stopPropagation(); escuchar(recurso); });
+      vista.appendChild(play);
+    }
+    const marca = el('span', 'picker-check');
+    marca.appendChild(icono('bi-check-lg'));
+
+    const partes = recurso.nombre.split('/');
+    const ruta = [etiquetaCarpeta(recurso.carpeta), ...partes.slice(0, -1)].join(' › ');
+    nodo.append(vista, marca, el('div', 'picker-nombre', partes.at(-1)), el('div', 'picker-ruta', ruta));
+    if (recurso.compatible) {
+      nodo.addEventListener('click', () => elegir(recurso));
+      nodo.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); elegir(recurso); }
+      });
+    }
+    return nodo;
+  };
+
+  const chip = (valor, texto) => {
+    const boton = el('button', `btn btn-sm rounded-pill ${e.carpeta === valor ? 'btn-primary' : 'btn-outline-secondary'}`, texto);
+    boton.type = 'button';
+    boton.addEventListener('click', () => { e.carpeta = valor; e.limite = POR_TANDA; pintar(); });
+    return boton;
+  };
+
+  function pintar() {
+    const terminos = paraBuscar(buscador.value).split(' ').filter(Boolean);
+    const coincide = x => (!e.tipo || x.r.tipo === e.tipo) && terminos.every(t => x.clave.includes(t));
+    const base = indice.filter(coincide);
+    const lista = base.filter(x => !e.carpeta || x.r.carpeta === e.carpeta);
+    // Primero lo de la materia de la actividad, luego el resto en orden
+    const prioridad = r => (r.carpeta === e.materia ? 0 : 1);
+    const ordenTipo = { Imagen: 0, Audio: 1, Video: 2 };
+    lista.sort((a, b) => prioridad(a.r) - prioridad(b.r) || a.r.carpeta.localeCompare(b.r.carpeta)
+      || ordenTipo[a.r.tipo] - ordenTipo[b.r.tipo] || a.r.nombre.localeCompare(b.r.nombre, 'es', { numeric: true }));
+
+    botonesTipo.forEach(b => {
+      b.className = `btn btn-sm ${b.dataset.valor === e.tipo ? 'btn-primary' : 'btn-outline-primary'}`;
+    });
+    grupoTipos.classList.toggle('d-none', e.tipoFijo);
+
+    const cuenta = c => base.filter(x => x.r.carpeta === c).length;
+    const ordenadas = [...carpetas].sort((a, b) => prioridad({ carpeta: a }) - prioridad({ carpeta: b }) || etiquetaCarpeta(a).localeCompare(etiquetaCarpeta(b), 'es'));
+    chips.replaceChildren(
+      chip('', `Todas (${base.length})`),
+      ...ordenadas.filter(c => cuenta(c) || c === e.carpeta).map(c => chip(c, `${etiquetaCarpeta(c)} (${cuenta(c)})`))
+    );
+
+    const visibles = lista.slice(0, e.limite);
+    rejilla.replaceChildren(...visibles.map(x => tarjeta(x.r)));
+    if (!lista.length) {
+      const vacio = el('p', 'text-secondary mb-0', 'No hay recursos con esa búsqueda. Prueba con otra palabra o quita los filtros.');
+      vacio.style.gridColumn = '1 / -1';
+      rejilla.appendChild(vacio);
+    }
+
+    pie.replaceChildren(el('span', '', `Mostrando ${visibles.length} de ${plural(lista.length, 'recurso', 'recursos')}`));
+    if (lista.length > visibles.length) {
+      const mas = el('button', 'btn btn-sm btn-soft', `Mostrar ${Math.min(POR_TANDA, lista.length - visibles.length)} más`);
+      mas.type = 'button';
+      mas.addEventListener('click', () => { e.limite += POR_TANDA; pintar(); });
+      pie.appendChild(mas);
+    }
+    contador.textContent = e.modo === 'varios' ? `${plural(e.seleccion.size, 'seleccionado', 'seleccionados')}` : '';
+  }
+
+  let consulta;
+  buscador.addEventListener('input', () => {
+    clearTimeout(consulta);
+    consulta = setTimeout(() => { e.limite = POR_TANDA; pintar(); }, 120);
+  });
+  quitar.addEventListener('click', () => { e.alElegir(null); ventana.hide(); });
+  modal.addEventListener('shown.bs.modal', () => buscador.focus());
+  modal.addEventListener('hidden.bs.modal', () => reproductor?.pause());
+
+  const abrir = datos => {
+    Object.assign(e, { carpeta: '', limite: POR_TANDA }, datos);
+    buscador.value = '';
+    pintar();
+    ventana.show();
+  };
+
+  return {
+    // Un campo del contenido: toca un recurso y la ventana se cierra
+    elegirUno({ tipo, actual, materia, alElegir }) {
+      const que = tipo === 'Audio' ? 'audio' : 'imagen';
+      titulo.textContent = `Elegir ${que}`;
+      subtitulo.textContent = 'Busca por nombre y toca el recurso que quieres usar.';
+      quitar.textContent = `Quitar ${que}`;
+      quitar.classList.toggle('d-none', actual == null);
+      listo.className = 'btn btn-light';
+      listo.textContent = 'Cancelar';
+      abrir({ modo: 'uno', tipo, tipoFijo: true, actual, materia, alElegir });
+    },
+    // Los recursos de la actividad: se marcan varios y cada cambio se avisa al momento
+    elegirVarios({ seleccion, materia, alCambiar }) {
+      titulo.textContent = 'Agregar recursos';
+      subtitulo.textContent = 'Marca los que quieras. Los que uses en el contenido se agregan solos.';
+      quitar.classList.add('d-none');
+      listo.className = 'btn btn-primary';
+      listo.textContent = 'Listo';
+      abrir({ modo: 'varios', tipo: '', tipoFijo: false, seleccion, materia, alCambiar });
+    }
+  };
+}
+
 /* ---------- Editor de contenido (plantillas de cada tipo de actividad) ---------- */
 // El HTML del constructor no trae esta tarjeta: se crea aquí con las mismas clases del diseño.
 // El formato de cada contenido está documentado en servidor_admin/plantillas.py.
@@ -456,23 +692,27 @@ const MAX_PARES = 8;
 
 // Controles compartidos por los editores. `ctx` trae el catálogo de recursos y la materia elegida.
 function crearControles(ctx) {
-  // Imágenes y audios de la carpeta de la materia elegida, más los generales de la app
-  const recursosDe = tipo => {
-    const carpeta = `actividades/${CARPETA_MATERIA[$('#actMateria').value]}`;
-    return ctx.catalogo.filter(r => r.tipo === tipo && r.compatible && (r.carpeta === carpeta || r.carpeta === 'app/general'));
-  };
-  const selectRecurso = (tipo, elegido, vacio) => {
-    const select = el('select', 'form-select form-select-sm');
-    const opciones = recursosDe(tipo);
-    const actual = ctx.catalogo.find(r => r.id === elegido);
-    if (actual && !opciones.includes(actual)) opciones.unshift(actual); // conserva lo ya elegido
-    select.append(el('option', '', vacio), ...opciones.map(r => {
-      const op = el('option', '', r.nombre);
-      op.value = r.id;
-      return op;
+  const carpetaActual = () => `actividades/${CARPETA_MATERIA[$('#actMateria').value]}`;
+  // Botón que muestra el recurso elegido y abre el selector con buscador (todas las carpetas)
+  const campoRecurso = (objeto, clave, tipo, vacio, ancho) => {
+    const boton = el('button', 'btn btn-sm btn-outline-secondary picker-campo');
+    boton.type = 'button';
+    boton.style.width = ancho;
+    const vista = el('span', 'thumb-sm flex-shrink-0');
+    const nombre = el('span', 'text-truncate flex-grow-1');
+    boton.append(vista, nombre, icono('bi-search small'));
+    const pintar = () => {
+      const recurso = ctx.catalogo.find(r => r.id === objeto[clave]);
+      vista.replaceChildren(...(recurso ? miniatura(recurso, 'thumb-sm').childNodes : []));
+      nombre.textContent = recurso ? recurso.nombre.split('/').pop() : vacio;
+      nombre.classList.toggle('text-secondary', !recurso);
+    };
+    boton.addEventListener('click', () => ctx.selector.elegirUno({
+      tipo, actual: objeto[clave] ?? null, materia: carpetaActual(),
+      alElegir: id => { objeto[clave] = id; pintar(); }
     }));
-    select.value = elegido ?? '';
-    return select;
+    pintar();
+    return boton;
   };
   const texto = (objeto, clave, marcador, maximo, clases = 'form-control form-control-sm') => {
     const input = el('input', clases);
@@ -484,26 +724,8 @@ function crearControles(ctx) {
     input.addEventListener('input', () => { objeto[clave] = input.value; });
     return input;
   };
-  // Lista de imágenes con su vista previa al lado
-  const imagen = (objeto, clave = 'imagen', vacio = 'Sin imagen') => {
-    const caja = el('div', 'd-flex align-items-center gap-2 flex-shrink-0');
-    const vista = el('span', 'thumb-sm flex-shrink-0');
-    const pintar = () => {
-      const recurso = ctx.catalogo.find(r => r.id === objeto[clave]);
-      vista.replaceChildren(...(recurso ? miniatura(recurso, 'thumb-sm').childNodes : []));
-    };
-    const select = selectRecurso('Imagen', objeto[clave], vacio);
-    select.style.width = '160px';
-    select.addEventListener('change', () => { objeto[clave] = select.value ? Number(select.value) : null; pintar(); });
-    pintar();
-    caja.append(vista, select);
-    return caja;
-  };
-  const audio = (objeto, vacio) => {
-    const select = selectRecurso('Audio', objeto.audio, vacio);
-    select.addEventListener('change', () => { objeto.audio = select.value ? Number(select.value) : null; });
-    return select;
-  };
+  const imagen = (objeto, clave = 'imagen', vacio = 'Sin imagen') => campoRecurso(objeto, clave, 'Imagen', vacio, '200px');
+  const audio = (objeto, vacio) => campoRecurso(objeto, 'audio', 'Audio', vacio, '100%');
   const quitar = (etiqueta, accion, deshabilitado = false) => {
     const boton = el('button', 'btn btn-sm btn-light');
     boton.type = 'button';
@@ -527,7 +749,7 @@ function crearControles(ctx) {
     return col;
   };
   const seccion = titulo => el('div', 'small fw-semibold mb-2 mt-3', titulo);
-  return { selectRecurso, texto, imagen, audio, quitar, boton, campo, seccion };
+  return { texto, imagen, audio, quitar, boton, campo, seccion };
 }
 
 // Una plantilla por tipo: `vacio` (contenido inicial), `agregar` (botón del encabezado),
@@ -725,7 +947,7 @@ function crearPlantillas(c, repintar) {
   };
 }
 
-function crearEditorContenido(actividad, catalogo) {
+function crearEditorContenido(actividad, catalogo, selector) {
   const enApp = Boolean(actividad?.en_app);
   const filaPrincipal = $('#resourceGrid').closest('.row');
   const tarjeta = el('div', 'card mt-4');
@@ -765,7 +987,7 @@ function crearEditorContenido(actividad, catalogo) {
     lista.replaceChildren();
     plantilla.pintar(contenidoDe(tipo()), lista);
   };
-  plantillas = crearPlantillas(crearControles({ catalogo }), repintar);
+  plantillas = crearPlantillas(crearControles({ catalogo, selector }), repintar);
 
   botonAgregar.addEventListener('click', () => { plantillas[tipo()].nuevo(contenidoDe(tipo())); repintar(); });
   $('#actTipo').addEventListener('change', repintar);
@@ -782,14 +1004,8 @@ async function iniciarConstructor() {
   const id = params.get('id');
   const grid = $('#resourceGrid');
   const botonMas = $('.add-tile', grid);
-  const tbodyModal = $('#tablaRecursosModal tbody');
-  const filtroTipoModal = $('#modalRecursos .modal-body select');
-  const contadorModal = $('#modalRecursos .modal-body > .d-flex span');
-  const paginacionModal = $('#modalRecursos .pagination');
-  const estadoModal = { pagina: 1 };
   const selected = new Map();
   $$('.resource-tile:not(.add-tile)', grid).forEach(n => n.remove());
-  tbodyModal.replaceChildren();
 
   const [respRecursos, respActividad] = await Promise.all([
     api('/api/recursos'),
@@ -824,24 +1040,23 @@ async function iniciarConstructor() {
     $('#resEstado').textContent = 'Publicada (reemplaza la versión actual)';
   }
 
-  // Selección sincronizada entre la cuadrícula y el modal "Más recursos"
-  const allChecks = () => $$('input[type="checkbox"]', grid).concat($$('input[type="checkbox"]', tbodyModal));
+  const selector = crearSelectorRecursos(catalogo);
+  const carpetaDeLaMateria = () => `actividades/${CARPETA_MATERIA[$('#actMateria').value]}`;
+
+  // Cuadrícula: lo que ya eligió y, como sugerencia, imágenes de la materia. Todo lo demás está en el selector.
   const render = () => {
-    allChecks().forEach(cb => { cb.checked = selected.has(cb.value); });
+    $$('input[type="checkbox"]', grid).forEach(cb => { cb.checked = selected.has(cb.value); });
     const n = selected.size;
     $('#selCount').textContent = `${n} seleccionado${n === 1 ? '' : 's'}`;
   };
-  const alCambiar = e => {
-    const cb = e.target;
+  grid.addEventListener('change', ev => {
+    const cb = ev.target;
     if (cb.type !== 'checkbox') return;
     if (cb.checked) selected.set(cb.value, buscarRecurso(cb.value));
     else selected.delete(cb.value);
     render();
-  };
-  grid.addEventListener('change', alCambiar);
-  tbodyModal.addEventListener('change', alCambiar);
+  });
 
-  // Cuadrícula: imágenes de la carpeta de la materia elegida
   const tarjeta = recurso => {
     const label = el('label', `resource-tile${recurso.compatible ? '' : ' is-disabled'}`);
     if (!recurso.compatible) label.title = `Disponible desde v${recurso.version_minima}`;
@@ -852,19 +1067,20 @@ async function iniciarConstructor() {
     input.disabled = !recurso.compatible;
     const check = el('span', 'check');
     check.appendChild(icono('bi-check-lg'));
-    label.append(input, check, miniatura(recurso, 'thumb'), el('div', 'name', recurso.nombre));
+    label.append(input, check, miniatura(recurso, 'thumb'), el('div', 'name', recurso.nombre.split('/').pop()));
     return label;
   };
   const cardRecursos = grid.closest('.card');
   const renderGrid = () => {
-    const carpeta = `actividades/${CARPETA_MATERIA[$('#actMateria').value]}`;
-    $('.card-header code', cardRecursos).textContent = `assets/images/${carpeta}`;
+    const carpeta = carpetaDeLaMateria();
+    $('#recursosAyuda').textContent = `Lo que elegiste y algunas imágenes de ${etiquetaCarpeta(carpeta)}`;
     $$('.resource-tile:not(.add-tile)', grid).forEach(n => n.remove());
-    const recientes = catalogo.filter(r => r.carpeta === carpeta && r.tipo === 'Imagen').slice(0, 5);
-    recientes.forEach(r => grid.insertBefore(tarjeta(r), botonMas));
+    const sugeridos = catalogo.filter(r => r.carpeta === carpeta && r.tipo === 'Imagen' && !selected.has(String(r.id))).slice(0, 6);
+    const mostrados = [...selected.values(), ...sugeridos];
+    mostrados.forEach(r => grid.insertBefore(tarjeta(r), botonMas));
 
     const alerta = $('.alert-warning', cardRecursos);
-    const bloqueados = recientes.filter(r => !r.compatible);
+    const bloqueados = mostrados.filter(r => !r.compatible);
     alerta.classList.toggle('d-none', !bloqueados.length);
     if (bloqueados.length) {
       const b = bloqueados[0];
@@ -876,38 +1092,18 @@ async function iniciarConstructor() {
     render();
   };
   $('#actMateria').addEventListener('change', renderGrid);
-  const editor = crearEditorContenido(actividad, catalogo);
+  const editor = crearEditorContenido(actividad, catalogo, selector);
 
-  // Modal "Más recursos": todo el catálogo, con búsqueda, tipo y páginas
-  catalogo.forEach(r => {
-    const tr = el('tr', r.compatible ? '' : 'opacity-50');
-    tr.dataset.tipo = r.tipo;
-    const tdCheck = el('td');
-    const input = el('input', 'form-check-input');
-    input.type = 'checkbox';
-    input.value = r.id;
-    input.dataset.tipo = r.tipo;
-    input.disabled = !r.compatible;
-    input.setAttribute('aria-label', r.nombre);
-    tdCheck.appendChild(input);
-    const tdVista = el('td');
-    tdVista.appendChild(miniatura(r, 'thumb-sm'));
-    const tdCompat = el('td');
-    tdCompat.appendChild(el('span', `status ${r.version_minima ? 'status-warning' : 'status-success'}`, r.compatibilidad));
-    tr.append(tdCheck, tdVista, el('td', 'fw-semibold', r.nombre), el('td', '', r.tipo), tdCompat);
-    tbodyModal.appendChild(tr);
-  });
-  const filtrarModal = (reiniciar = true) => {
-    if (reiniciar) estadoModal.pagina = 1;
-    const q = $('#buscarRecursoModal').value.trim().toLowerCase();
-    const tipo = ['', 'Imagen', 'Audio'][filtroTipoModal.selectedIndex];
-    const filas = $$('tr', tbodyModal);
-    const coinciden = filas.filter(r => r.textContent.toLowerCase().includes(q) && (!tipo || r.dataset.tipo === tipo));
-    const visibles = paginar(filas, coinciden, paginacionModal, estadoModal, () => filtrarModal(false));
-    contadorModal.textContent = `${visibles} de ${catalogo.length} recursos`;
-  };
-  $('#buscarRecursoModal').addEventListener('input', () => filtrarModal());
-  filtroTipoModal.addEventListener('change', () => filtrarModal());
+  // Buscador visible: abre el selector con todo el catálogo (imágenes y audios de todas las materias)
+  const abrirSelector = () => selector.elegirVarios({ seleccion: selected, materia: carpetaDeLaMateria(), alCambiar: renderGrid });
+  const imagenes = catalogo.filter(r => r.tipo === 'Imagen').length;
+  const audios = catalogo.filter(r => r.tipo === 'Audio').length;
+  const buscar = el('button', 'picker-trigger');
+  buscar.type = 'button';
+  buscar.append(icono('bi-search'), el('span', '', `Buscar entre ${plural(imagenes, 'imagen', 'imágenes')} y ${plural(audios, 'audio', 'audios')}…`));
+  buscar.addEventListener('click', abrirSelector);
+  grid.before(buscar);
+  botonMas.addEventListener('click', abrirSelector);
 
   // Resumen antes de publicar
   $('#modalResumen').addEventListener('show.bs.modal', () => {
@@ -981,7 +1177,6 @@ async function iniciarConstructor() {
   $('#btnContinuar').addEventListener('click', e => { e.preventDefault(); guardar('Publicada', e.currentTarget); });
 
   renderGrid();
-  filtrarModal();
 }
 
 /* ---------- Recursos ---------- */
@@ -1347,7 +1542,7 @@ function iniciarUsuarios() {
     $('#edNombre').value = u.nombre;
     $('#edApellido').value = u.apellido;
     $('#edCorreo').value = u.correo;
-    $('#edRol').value = u.rol;
+    $('#edRol').replaceChildren(new Option(u.rol, u.rol)); // el rol de una cuenta no se cambia
     $('#edInst').value = u.institucion;
     gruposEditar.abrir(u.id, u.grupos.map(g => g.id));
     const activar = u.estado !== 'Activo';
@@ -1544,12 +1739,23 @@ async function iniciarHistorial() {
 
 /* ---------- Monitoreo técnico ---------- */
 function iniciarMonitoreo() {
-  const cardInformes = $('.report-item').closest('.card');
+  const cardInformes = $('#cardInformes');
   const cardEventos = $('.event-item').closest('.card');
-  $('.topbar [data-toast]').addEventListener('click', async () => {
+  $('#btnInforme').addEventListener('click', async ev => {
+    const boton = ev.currentTarget;
+    boton.disabled = true;
     const { ok, datos } = await api('/api/informes', { metodo: 'POST' });
+    boton.disabled = false;
     if (!ok) return mostrarError(datos);
+    showToast(`Informe listo: «${datos.titulo}». Se está descargando.`);
+    window.location.href = `/api/informes/${datos.id}/descargar`;
     cargarMonitoreo(cardInformes, cardEventos);
+  });
+  $('#btnComprobar').addEventListener('click', async ev => {
+    const boton = ev.currentTarget;
+    boton.disabled = true;
+    await cargarMonitoreo(cardInformes, cardEventos, true);
+    boton.disabled = false;
   });
   cargarMonitoreo(cardInformes, cardEventos);
 
@@ -1558,30 +1764,57 @@ function iniciarMonitoreo() {
   versiones.addEventListener('hidden.bs.collapse', () => { $('#btnVersiones').textContent = 'Ver versiones'; });
 }
 
-async function cargarMonitoreo(cardInformes, cardEventos) {
-  const { ok, datos } = await api('/api/monitoreo');
-  if (!ok) return mostrarError(datos);
-
-  const actualizado = $('.topbar-actions span.small');
-  if (actualizado) actualizado.lastChild.textContent = `Actualizado a las ${datos.actualizado}`;
-
-  // Estado de los servicios del backend de la app
+// Tarjeta de un servicio: qué es, si responde y, si no, desde cuándo, por qué y qué afecta
+function tarjetaServicio(s) {
   const ESTADOS = {
     true: ['text-success', 'bg-success', 'Operativo'],
     false: ['text-danger', 'bg-danger', 'Sin respuesta'],
     null: ['text-secondary', 'bg-secondary', 'Sin configurar']
   };
-  $$('.service-status').forEach((nodo, i) => {
-    const servicio = datos.servicios[i];
-    if (!servicio) return;
-    const [texto, punto, etiqueta] = ESTADOS[servicio.operativo];
-    nodo.className = `service-status ${texto}`;
-    nodo.replaceChildren(el('span', `pulse ${punto}`), ` ${etiqueta}`);
-    nodo.closest('.card').classList.toggle('border-danger-subtle', servicio.operativo === false);
-  });
-  const [sinSync, errores] = $$('.stat-value');
-  sinSync.textContent = datos.sin_sincronizar;
-  errores.textContent = datos.errores_24h;
+  const [texto, punto, etiqueta] = ESTADOS[s.operativo];
+  const col = el('div', 'col-lg-6');
+  const card = el('div', `card p-3 h-100${s.operativo === false ? ' border-danger-subtle' : ''}`);
+
+  const cabecera = el('div', 'd-flex justify-content-between align-items-start gap-2 mb-1');
+  const nombre = el('div', 'fw-semibold');
+  nombre.append(icono(`${s.clave === 'contenido' ? 'bi-robot' : 'bi-hdd-network'} me-2 text-secondary`), s.nombre);
+  const estado = el('div', `service-status ${texto} text-nowrap`);
+  estado.append(el('span', `pulse ${punto}`), ` ${etiqueta}`);
+  cabecera.append(nombre, estado);
+
+  const lineas = [];
+  if (s.operativo === false) {
+    lineas.push(['Sin respuesta desde', s.desde_texto]);
+    lineas.push(['Motivo', s.detalle]);
+    lineas.push(['Qué afecta', s.afecta]);
+  } else if (s.operativo === true) {
+    lineas.push(['Última comprobación', `${s.revisado} · ${s.detalle.toLowerCase()}`]);
+  } else {
+    lineas.push(['Estado', s.detalle]);
+  }
+  if (s.direccion) lineas.push(['Dirección consultada', s.direccion]);
+  const detalle = el('dl', 'row small mb-0 mt-2');
+  lineas.forEach(([titulo, valor]) => detalle.append(el('dt', 'col-sm-4 text-secondary fw-normal', titulo), el('dd', 'col-sm-8 mb-1', valor)));
+
+  card.append(cabecera, el('p', 'small text-secondary mb-0', s.descripcion), detalle);
+  col.appendChild(card);
+  return col;
+}
+
+async function cargarMonitoreo(cardInformes, cardEventos, forzar = false) {
+  const { ok, datos } = await api(`/api/monitoreo${forzar ? '?forzar=1' : ''}`);
+  if (!ok) return mostrarError(datos);
+
+  const actualizado = $('.topbar-actions span.small');
+  if (actualizado) actualizado.lastChild.textContent = `Actualizado a las ${datos.actualizado}`;
+
+  $('#servicios').replaceChildren(...datos.servicios.map(tarjetaServicio));
+  $('#statSin').textContent = datos.sin_sincronizar;
+  $('#statSinTexto').textContent = `de ${plural(datos.equipos_registrados, 'equipo registrado', 'equipos registrados')}: no enviaron su progreso en los últimos ${datos.dias_sin_sincronizar} días.`;
+  $('#statErr').textContent = datos.errores_24h;
+  $('#statErrTexto').textContent = datos.errores_24h
+    ? 'Eventos críticos o alertas del registro de eventos.'
+    : 'No hubo eventos críticos ni alertas en el registro.';
 
   // Informes recientes
   $$('.report-item', cardInformes).forEach(n => n.remove());
@@ -1589,17 +1822,18 @@ async function cargarMonitoreo(cardInformes, cardEventos) {
   datos.informes.forEach(inf => {
     const item = el('div', 'report-item');
     const vista = el('span', 'thumb-sm');
-    vista.appendChild(icono(inf.formato === 'PDF' ? 'bi-filetype-pdf' : 'bi-filetype-csv'));
+    vista.appendChild(icono(inf.formato === 'PDF' ? 'bi-filetype-pdf' : inf.formato === 'XLSX' ? 'bi-filetype-xlsx' : 'bi-filetype-csv'));
     const info = el('div', 'flex-grow-1');
-    info.append(el('div', 'fw-semibold', inf.titulo), el('div', 'cell-sub', `${inf.formato} · ${inf.tamano}`));
+    info.append(el('div', 'fw-semibold', inf.titulo), el('div', 'cell-sub', `${inf.formato === 'XLSX' ? 'Excel' : inf.formato} · ${inf.tamano} · ${inf.fecha}`));
     const descargar = el('a', 'btn btn-sm btn-light');
     descargar.href = `/api/informes/${inf.id}/descargar`;
-    descargar.setAttribute('aria-label', 'Descargar');
+    descargar.setAttribute('aria-label', `Descargar ${inf.titulo}`);
     descargar.appendChild(icono('bi-download'));
     item.append(vista, info, descargar);
     pie.before(item);
   });
-  pie.textContent = `Son ${datos.equipos} equipos con datos sincronizados.`;
+  if (!datos.informes.length) pie.before(el('div', 'report-item text-secondary small', 'Todavía no hay informes. Usa «Descargar informe».'));
+  pie.textContent = `${plural(datos.equipos_registrados, 'equipo registrado', 'equipos registrados')} · ${datos.equipos_registrados - datos.sin_sincronizar} sincronizaron en los últimos ${datos.dias_sin_sincronizar} días.`;
 
   // Versiones de la app en uso
   const filas = datos.versiones.map(v => {

@@ -180,7 +180,8 @@ CREATE TABLE servicios (
   nombre        VARCHAR(60) NOT NULL,
   operativo     BOOLEAN NULL,     -- NULL = todavía no se ha revisado
   caido_desde   DATETIME NULL,
-  revisado_en   DATETIME NULL
+  revisado_en   DATETIME NULL,
+  detalle       VARCHAR(200) NULL  -- por qué no responde (o "Respondió correctamente")
 );
 
 -- Registro de eventos técnicos
@@ -195,7 +196,7 @@ CREATE TABLE eventos (
 CREATE TABLE informes (
   id         INT AUTO_INCREMENT PRIMARY KEY,
   titulo     VARCHAR(120) NOT NULL,
-  formato    ENUM('CSV', 'PDF') NOT NULL,
+  formato    ENUM('CSV', 'PDF', 'XLSX') NOT NULL,
   contenido  LONGBLOB NOT NULL,
   creado_en  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

@@ -52,7 +52,8 @@
         </nav>
         <div class="topbar-actions align-items-center">
           <span class="small text-secondary d-none d-md-inline"><i class="bi bi-arrow-repeat me-1"></i>Actualizado hace 3 minutos</span>
-          <button type="button" class="btn btn-primary btn-sm" data-toast="Generando informe… aparecerá en Informes recientes."><i class="bi bi-download me-1"></i> Descargar informe</button>
+<button type="button" class="btn btn-outline-primary btn-sm" id="btnComprobar" title="Vuelve a preguntarle a los servicios si responden"><i class="bi bi-arrow-repeat me-1"></i> Comprobar ahora</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btnInforme" title="Excel con un resumen y la lista de equipos"><i class="bi bi-file-earmark-excel me-1"></i> Descargar informe</button>
         </div>
       </header>
 
@@ -64,30 +65,23 @@
           </div>
         </div>
 
-        <!-- Estado de servicios -->
+        <!-- Estado de los servicios de la app (se llena con /api/monitoreo) -->
+        <div class="row g-3 mb-3" id="servicios"></div>
+
+        <!-- Equipos y alertas -->
         <div class="row g-3 mb-4">
-          <div class="col-sm-6 col-xl-3">
+          <div class="col-md-6">
             <div class="card p-3 h-100">
-              <div class="small text-secondary mb-2"><i class="bi bi-database me-1"></i> Firestore</div>
-              <div class="service-status text-success"><span class="pulse bg-success"></span> Operativo</div>
+              <div class="small text-secondary mb-2"><i class="bi bi-cloud-slash me-1"></i> Equipos sin sincronizar</div>
+              <div class="stat-value text-warning-emphasis" id="statSin">—</div>
+              <div class="small text-secondary mt-1" id="statSinTexto"></div>
             </div>
           </div>
-          <div class="col-sm-6 col-xl-3">
-            <div class="card p-3 h-100 border-danger-subtle">
-              <div class="small text-secondary mb-2"><i class="bi bi-robot me-1"></i> RAG API</div>
-              <div class="service-status text-danger"><span class="pulse bg-danger"></span> Sin respuesta</div>
-            </div>
-          </div>
-          <div class="col-sm-6 col-xl-3">
+          <div class="col-md-6">
             <div class="card p-3 h-100">
-              <div class="small text-secondary mb-2"><i class="bi bi-cloud-slash me-1"></i> Sin sincronizar</div>
-              <div class="stat-value text-warning-emphasis">61</div>
-            </div>
-          </div>
-          <div class="col-sm-6 col-xl-3">
-            <div class="card p-3 h-100">
-              <div class="small text-secondary mb-2"><i class="bi bi-bug me-1"></i> Errores 24 h</div>
-              <div class="stat-value">17</div>
+              <div class="small text-secondary mb-2"><i class="bi bi-bug me-1"></i> Alertas en las últimas 24 horas</div>
+              <div class="stat-value" id="statErr">—</div>
+              <div class="small text-secondary mt-1" id="statErrTexto"></div>
             </div>
           </div>
         </div>
@@ -95,27 +89,12 @@
         <div class="row g-4 mb-4">
           <!-- Informes recientes -->
           <div class="col-lg-7">
-            <div class="card h-100">
+            <div class="card h-100" id="cardInformes">
               <div class="card-header">
                 <h2 class="card-title">Informes recientes</h2>
-                <p class="small text-secondary mb-0">Genera uno nuevo con el botón Descargar informe.</p>
+                <p class="small text-secondary mb-0">Descargar informe crea un Excel: una hoja con el resumen y otra con la lista de equipos.</p>
               </div>
-              <div class="report-item">
-                <span class="thumb-sm"><i class="bi bi-filetype-csv"></i></span>
-                <div class="flex-grow-1"><div class="fw-semibold">Sincronización · julio 2026</div><div class="cell-sub">CSV · 84 KB</div></div>
-                <a href="#" class="btn btn-sm btn-light" aria-label="Descargar"><i class="bi bi-download"></i></a>
-              </div>
-              <div class="report-item">
-                <span class="thumb-sm"><i class="bi bi-filetype-pdf"></i></span>
-                <div class="flex-grow-1"><div class="fw-semibold">Cobertura institucional · 2026-1</div><div class="cell-sub">PDF · 1.2 MB</div></div>
-                <a href="#" class="btn btn-sm btn-light" aria-label="Descargar"><i class="bi bi-download"></i></a>
-              </div>
-              <div class="report-item">
-                <span class="thumb-sm"><i class="bi bi-filetype-csv"></i></span>
-                <div class="flex-grow-1"><div class="fw-semibold">Uso por grado · junio 2026</div><div class="cell-sub">CSV · 61 KB</div></div>
-                <a href="#" class="btn btn-sm btn-light" aria-label="Descargar"><i class="bi bi-download"></i></a>
-              </div>
-              <div class="card-footer bg-transparent small text-secondary">Son 742 equipos con datos sincronizados.</div>
+              <div class="card-footer bg-transparent small text-secondary"></div>
             </div>
           </div>
 
