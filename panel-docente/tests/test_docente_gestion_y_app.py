@@ -114,11 +114,12 @@ def test_actividad_de_plantilla_llega_con_contenido_y_archivos(app_numi, tmp_pat
         contenido = ('{"preguntas": [{"enunciado": "¿Cuál es una fruta?", "audio": null, "opciones": ['
                      f'{{"texto": "Banano", "imagen": {recurso_id}, "correcta": true}}, '
                      '{"texto": "Silla", "imagen": null, "correcta": false}]}]}')
+        grupo = consultar("SELECT codigo, grado FROM grupos WHERE codigo_vence >= CURDATE() AND codigo_usos < codigo_usos_max LIMIT 1", uno=True)
+        codigo = grupo["codigo"]
         actividad_id = ejecutar("""INSERT INTO actividades (slug, nombre, materia, grado, tipo, estado, en_app, contenido)
-                                   VALUES ('toca-las-frutas', 'toca las frutas', 'ciencias', 2, 'Selección múltiple', 'Publicada', FALSE, %s)""",
-                                (contenido,))
+                                   VALUES ('toca-las-frutas', 'toca las frutas', 'ciencias', %s, 'Selección múltiple', 'Publicada', FALSE, %s)""",
+                                (grupo["grado"], contenido))
         ejecutar("INSERT INTO actividad_recurso VALUES (%s, %s)", (actividad_id, recurso_id))
-        codigo = consultar("SELECT codigo FROM grupos WHERE codigo_vence >= CURDATE() AND codigo_usos < codigo_usos_max LIMIT 1", uno=True)["codigo"]
 
     app_numi.post("/api/app/v1/unirse", json={"uid": "nino-plantilla", "codigo": codigo})
     datos = app_numi.get("/api/app/v1/actividades?uid=nino-plantilla").get_json()
@@ -153,16 +154,67 @@ def test_todas_las_plantillas_llegan_a_la_app_con_su_contenido(app_numi):
             {"texto": "Perro", "imagen": None, "correcta": True}, {"texto": "Gato", "imagen": None, "correcta": False}]}]},
     }
     with app_numi.application.app_context():
+        grupo = consultar("SELECT codigo, grado FROM grupos WHERE codigo_vence >= CURDATE() AND codigo_usos < codigo_usos_max LIMIT 1", uno=True)
+        codigo = grupo["codigo"]
         for n, (tipo, contenido) in enumerate(contenidos.items()):
             ejecutar("""INSERT INTO actividades (slug, nombre, materia, grado, tipo, estado, en_app, contenido)
-                        VALUES (%s, %s, 'ciencias', 2, %s, 'Publicada', FALSE, %s)""",
-                     (f"plantilla-{n}", f"Plantilla {n}", tipo, json.dumps(contenido, ensure_ascii=False)))
-        codigo = consultar("SELECT codigo FROM grupos WHERE codigo_vence >= CURDATE() AND codigo_usos < codigo_usos_max LIMIT 1", uno=True)["codigo"]
+                        VALUES (%s, %s, 'ciencias', %s, %s, 'Publicada', FALSE, %s)""",
+                     (f"plantilla-{n}", f"Plantilla {n}", grupo["grado"], tipo, json.dumps(contenido, ensure_ascii=False)))
 
     app_numi.post("/api/app/v1/unirse", json={"uid": "nino-todas", "codigo": codigo})
     datos = app_numi.get("/api/app/v1/actividades?uid=nino-todas").get_json()
     recibidas = {a["tipo"]: a["contenido"] for a in datos["actividades"] if a["id"].startswith("plantilla-")}
     assert recibidas == contenidos
+
+
+def test_actividad_del_panel_solo_llega_a_los_grupos_de_su_grado(app_numi):
+    """El grado que elige el administrador filtra; las pantallas que ya trae la app valen para todos."""
+    import json
+
+    from servidor_docente.db import consultar, ejecutar
+
+    contenido = json.dumps({"pares": [{"texto": "Dog", "imagen": None}, {"texto": "Cat", "imagen": None}]})
+    with app_numi.application.app_context():
+        grupo = consultar("SELECT codigo, grado FROM grupos WHERE codigo_vence >= CURDATE() AND codigo_usos < codigo_usos_max LIMIT 1", uno=True)
+        otro_grado = 1 if grupo["grado"] != 1 else 2
+        for slug, grado in (("memory-del-grado", grupo["grado"]), ("memory-de-otro-grado", otro_grado)):
+            ejecutar("""INSERT INTO actividades (slug, nombre, materia, grado, tipo, estado, en_app, contenido)
+                        VALUES (%s, %s, 'ingles', %s, 'Memory match', 'Publicada', FALSE, %s)""",
+                     (slug, slug, grado, contenido))
+        # Un borrador del mismo grado tampoco llega
+        ejecutar("""INSERT INTO actividades (slug, nombre, materia, grado, tipo, estado, en_app, contenido)
+                    VALUES ('memory-borrador', 'memory-borrador', 'ingles', %s, 'Memory match', 'Borrador', FALSE, %s)""",
+                 (grupo["grado"], contenido))
+
+    app_numi.post("/api/app/v1/unirse", json={"uid": "nino-grado", "codigo": grupo["codigo"]})
+    ids = {a["id"] for a in app_numi.get("/api/app/v1/actividades?uid=nino-grado").get_json()["actividades"]}
+    assert "memory-del-grado" in ids
+    assert "memory-de-otro-grado" not in ids and "memory-borrador" not in ids
+    assert "los-numeros" in ids  # pantalla propia de la app: la misma para todos los grados
+
+
+def test_el_docente_solo_ve_las_actividades_del_panel_de_su_grado(docente):
+    """Luisa tiene 3° A, 4° B y 5° A: una actividad de 4° aparece solo en 4° B y se puede activar solo ahí."""
+    import json
+
+    from servidor_docente.db import ejecutar
+
+    contenido = json.dumps({"pares": [{"texto": "Dog", "imagen": None}, {"texto": "Cat", "imagen": None}]})
+    with docente.application.app_context():
+        ejecutar("""INSERT INTO actividades (slug, nombre, materia, grado, tipo, estado, en_app, contenido)
+                    VALUES ('memory-de-cuarto', 'Memory de cuarto', 'ingles', 4, 'Memory match', 'Publicada', FALSE, %s)""",
+                 (contenido,))
+    grupos = {g["corto"]: g["id"] for g in docente.get("/api/me").get_json()["grupos"]}
+
+    def ids_en(grupo):
+        docente.post("/api/grupo-activo", json={"grupo_id": grupos[grupo]})
+        return [a["id"] for a in docente.get("/api/actividades").get_json()]
+
+    assert "memory-de-cuarto" not in ids_en("3° A")
+    assert docente.patch("/api/actividades/memory-de-cuarto", json={"activa": False}).status_code == 404
+    assert "memory-de-cuarto" in ids_en("4° B")
+    assert docente.patch("/api/actividades/memory-de-cuarto", json={"activa": False}).status_code == 200
+    assert "memory-de-cuarto" not in ids_en("5° A")
 
 
 def test_recursos_exigen_la_clave(base_de_pruebas, client):
