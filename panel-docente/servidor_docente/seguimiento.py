@@ -5,10 +5,13 @@ from statistics import mean
 
 from flask import Blueprint, abort, jsonify, request
 
+from comun.db import consultar, ejecutar
+from comun.errores import ErrorDeDatos
+from comun.textos import iniciales, nombre_grupo
+
 from . import archivos, calculos
 from .auth import grupo_actual
-from .db import consultar, ejecutar
-from .utilidades import ErrorDeDatos, iniciales, nombre_grupo, normalizar
+from .utilidades import normalizar
 
 bp = Blueprint("seguimiento", __name__)
 
@@ -137,7 +140,7 @@ def informe_estudiante(estudiante_id):
     secciones = [
         ("Resumen", ["Avance", "Racha", "Estado"], [[f"{alumno['avance']}%", ficha_json["racha"], alumno["estado"]]]),
         ("Avance por materia", ["Materia", "Avance"],
-         [[n, "No aplica" if v is None else f"{v}%"] for n, v in zip(nombres, alumno["materias"])]),
+         [[n, "No aplica" if v is None else f"{v}%"] for n, v in zip(nombres, alumno["materias"], strict=True)]),
         ("Actividades", ["Actividad", "Estado"], ficha_json["actividades"]),
         ("Evaluación", ["Banco", "Resultado"], ficha_json["evaluacion"]),
     ]
@@ -166,7 +169,7 @@ def listar_actividades():
             "activa": bool(a["activa"]),
             "avance": calculos.porcentaje(mean(valores)) if valores else 0,
             "intentos_promedio": mean(intentos) if intentos else 0,
-            "estudiantes": [[al["nombre"], calculos.texto_avance(v)] for al, v in zip(alumnos, valores) if v],
+            "estudiantes": [[al["nombre"], calculos.texto_avance(v)] for al, v in zip(alumnos, valores, strict=True) if v],
         })
     # "Más errores": la actividad en la que más veces tuvieron que intentar
     con_intentos = [r for r in resultado if r["intentos_promedio"]]

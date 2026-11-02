@@ -6,8 +6,10 @@ from urllib.parse import quote
 from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from werkzeug.utils import secure_filename
 
-from .db import consultar, ejecutar
-from .utilidades import ErrorDeDatos, version
+from comun.db import consultar, ejecutar
+from comun.errores import ErrorDeDatos
+
+from .utilidades import version
 
 bp = Blueprint("recursos", __name__)
 

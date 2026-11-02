@@ -7,9 +7,11 @@ from datetime import date, timedelta
 
 from flask import Blueprint, current_app, jsonify, request
 
+from comun.db import consultar, ejecutar
+from comun.errores import ErrorDeDatos, error
+
 from .auth import grupo_actual
-from .db import consultar, ejecutar
-from .utilidades import ErrorDeDatos, error, fecha_larga
+from .utilidades import fecha_larga
 
 bp = Blueprint("gestion", __name__)
 

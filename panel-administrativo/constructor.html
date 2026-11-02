@@ -128,39 +128,14 @@
               </div>
               <div class="card-body p-4">
                 <div class="resource-grid" id="resourceGrid">
-                  <label class="resource-tile">
-                    <input type="checkbox" value="perro.png" data-tipo="Imagen">
-                    <span class="check"><i class="bi bi-check-lg"></i></span>
-                    <div class="thumb">🐶</div><div class="name">perro.png</div>
-                  </label>
-                  <label class="resource-tile">
-                    <input type="checkbox" value="arbol.png" data-tipo="Imagen">
-                    <span class="check"><i class="bi bi-check-lg"></i></span>
-                    <div class="thumb">🌳</div><div class="name">arbol.png</div>
-                  </label>
-                  <label class="resource-tile">
-                    <input type="checkbox" value="piedra.png" data-tipo="Imagen">
-                    <span class="check"><i class="bi bi-check-lg"></i></span>
-                    <div class="thumb">🪨</div><div class="name">piedra.png</div>
-                  </label>
-                  <label class="resource-tile">
-                    <input type="checkbox" value="silla.png" data-tipo="Imagen">
-                    <span class="check"><i class="bi bi-check-lg"></i></span>
-                    <div class="thumb">🪑</div><div class="name">silla.png</div>
-                  </label>
-                  <label class="resource-tile is-disabled" title="Disponible desde v1.4.0">
-                    <input type="checkbox" value="ballena.png" data-tipo="Imagen" disabled>
-                    <span class="check"><i class="bi bi-check-lg"></i></span>
-                    <div class="thumb">🐋</div><div class="name">ballena.png</div>
-                  </label>
                   <button type="button" class="resource-tile add-tile">
                     <i class="bi bi-plus-circle"></i> Ver todos
                   </button>
                 </div>
 
-                <div class="alert alert-warning d-flex gap-2 mt-4 mb-0 small" role="alert">
+                <div class="alert alert-warning d-flex gap-2 mt-4 mb-0 small d-none" role="alert">
                   <i class="bi bi-exclamation-triangle"></i>
-                  <div><strong>ballena.png</strong> está atenuada porque llegó en la v1.4.0. Los 193 equipos con versiones anteriores no podrían mostrar esta actividad.</div>
+                  <div></div>
                 </div>
               </div>
             </div>
@@ -193,8 +168,8 @@
           </dl>
           <div class="border rounded-3 p-3 small bg-light">
             <div class="fw-bold mb-2"><i class="bi bi-phone me-1"></i> Llega al celular del niño en su próxima sincronización.</div>
-            <div class="d-flex justify-content-between gap-2"><span>Equipos con v1.1.0</span><span class="text-warning-emphasis fw-semibold text-end">51 equipos no reciben actividades nuevas</span></div>
-            <div class="d-flex justify-content-between gap-2 mt-1"><span>Recursos de v1.4.0</span><span class="text-success fw-semibold text-end">No usa ballena.png: compatible con v1.3.2</span></div>
+            <div class="d-flex justify-content-between gap-2"><span>Equipos desactualizados</span><span class="fw-semibold text-end">—</span></div>
+            <div class="d-flex justify-content-between gap-2 mt-1"><span>Recursos nuevos</span><span class="fw-semibold text-end">—</span></div>
           </div>
         </div>
         <div class="modal-footer">

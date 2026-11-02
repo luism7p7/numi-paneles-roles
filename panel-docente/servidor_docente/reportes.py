@@ -5,10 +5,13 @@ from statistics import mean
 
 from flask import Blueprint, abort, jsonify, request
 
+from comun.db import consultar
+from comun.errores import ErrorDeDatos
+from comun.textos import nombre_grupo
+
 from . import archivos, calculos
 from .auth import grupo_actual
-from .db import consultar
-from .utilidades import ErrorDeDatos, nombre_grupo, normalizar
+from .utilidades import normalizar
 
 bp = Blueprint("reportes", __name__)
 
@@ -40,7 +43,7 @@ def datos_reporte():
     periodo = buscar_periodo(request.args.get("periodo") or periodo_actual())
     resumen = calculos.resumen_grupo(grupo, periodo["desde"], periodo["hasta"])
     nombres = [m["nombre_corto"] for m in calculos.materias()]
-    aplicables = [(v, n) for v, n in zip(resumen["materias"], nombres) if v is not None]
+    aplicables = [(v, n) for v, n in zip(resumen["materias"], nombres, strict=True) if v is not None]
     minimo = min(aplicables) if aplicables else (0, "—")
     return jsonify(
         periodo={"clave": periodo["clave"], "nombre": periodo["nombre"],

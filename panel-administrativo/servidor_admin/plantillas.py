@@ -18,7 +18,9 @@ Las imágenes y los audios son ids de la tabla `recursos`. Un borrador puede est
 incompleto; para publicar (completo=True) todo debe estar bien.
 """
 
-from .utilidades import ErrorDeDatos, entero
+from comun.errores import ErrorDeDatos
+
+from .utilidades import entero
 
 MAX_PREGUNTAS = 20
 MAX_OPCIONES = 4
@@ -57,6 +59,12 @@ def _objeto(valor, mensaje):
     return valor
 
 
+def _objetos(lista, mensaje):
+    """Recorre la lista dando (posición, objeto); cada elemento debe ser un objeto. `mensaje` lleva {n}."""
+    for n, valor in enumerate(lista, start=1):
+        yield n, _objeto(valor, mensaje.format(n=n))
+
+
 def _contenido(contenido, clave, maximo, plural):
     if contenido is None:
         contenido = {clave: []}
@@ -73,8 +81,7 @@ def _preguntas(contenido, completo, audio_obligatorio=False):
         raise ErrorDeDatos("Agrega al menos una pregunta antes de publicar.")
 
     limpias, usados = [], {}
-    for n, pregunta in enumerate(preguntas, start=1):
-        pregunta = _objeto(pregunta, f"La pregunta {n} no es válida.")
+    for n, pregunta in _objetos(preguntas, "La pregunta {n} no es válida."):
         opciones = pregunta.get("opciones")
         if not isinstance(opciones, list) or len(opciones) > MAX_OPCIONES:
             raise ErrorDeDatos(f"La pregunta {n} debe tener máximo {MAX_OPCIONES} opciones.")
@@ -83,8 +90,7 @@ def _preguntas(contenido, completo, audio_obligatorio=False):
             raise ErrorDeDatos(f"El enunciado de la pregunta {n} es muy largo (máximo 200 caracteres).")
         audio = _id_recurso(pregunta.get("audio"), "Audio", usados)
         limpias_opciones = []
-        for opcion in opciones:
-            opcion = _objeto(opcion, f"Las opciones de la pregunta {n} no son válidas.")
+        for _, opcion in _objetos(opciones, f"Las opciones de la pregunta {n} no son válidas."):
             limpias_opciones.append({
                 "texto": _texto(opcion.get("texto"), 60),
                 "imagen": _id_recurso(opcion.get("imagen"), "Imagen", usados),
@@ -120,14 +126,12 @@ def _clasificar(contenido, completo):
 
     usados = {}
     limpios_grupos = []
-    for n, grupo in enumerate(grupos, start=1):
-        grupo = _objeto(grupo, f"El grupo {n} no es válido.")
+    for _, grupo in _objetos(grupos, "El grupo {n} no es válido."):
         limpios_grupos.append({"nombre": _texto(grupo.get("nombre"), 40),
                                "imagen": _id_recurso(grupo.get("imagen"), "Imagen", usados)})
 
     limpios = []
-    for n, elemento in enumerate(elementos, start=1):
-        elemento = _objeto(elemento, f"El elemento {n} no es válido.")
+    for n, elemento in _objetos(elementos, "El elemento {n} no es válido."):
         grupo = elemento.get("grupo")
         if grupo is not None:
             grupo = entero(grupo, "el grupo del elemento", 0, 10**6)
@@ -174,8 +178,7 @@ def _emparejar(contenido, completo):
         raise ErrorDeDatos("Agrega al menos 2 parejas antes de publicar.")
 
     usados, limpias = {}, []
-    for n, pareja in enumerate(parejas, start=1):
-        pareja = _objeto(pareja, f"La pareja {n} no es válida.")
+    for n, pareja in _objetos(parejas, "La pareja {n} no es válida."):
         mensaje = f"La pareja {n} no es válida."
         elemento = _lado(pareja.get("elemento", {}), mensaje, usados)
         destino = _lado(pareja.get("destino", {}), mensaje, usados)
@@ -194,8 +197,7 @@ def _silabas(contenido, completo):
         raise ErrorDeDatos("Agrega al menos una palabra antes de publicar.")
 
     usados, limpias = {}, []
-    for n, palabra in enumerate(palabras, start=1):
-        palabra = _objeto(palabra, f"La palabra {n} no es válida.")
+    for n, palabra in _objetos(palabras, "La palabra {n} no es válida."):
         silabas = _lista(palabra.get("silabas"), f"La palabra {n} debe tener máximo {MAX_SILABAS} sílabas.", MAX_SILABAS)
         silabas = [_texto(s, 12) for s in silabas if isinstance(s, str)]
         limpias.append({"silabas": [s for s in silabas if s],
@@ -213,8 +215,7 @@ def _memory(contenido, completo):
         raise ErrorDeDatos("Agrega al menos 2 pares antes de publicar.")
 
     usados, limpios = {}, []
-    for n, par in enumerate(pares, start=1):
-        par = _objeto(par, f"El par {n} no es válido.")
+    for n, par in _objetos(pares, "El par {n} no es válido."):
         limpio = {"texto": _texto(par.get("texto"), 30), "imagen": _id_recurso(par.get("imagen"), "Imagen", usados)}
         if completo and not limpio["texto"] and not limpio["imagen"]:
             raise ErrorDeDatos(f"El par {n} necesita un texto o una imagen.")

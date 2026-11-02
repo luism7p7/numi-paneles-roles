@@ -5,18 +5,17 @@ from datetime import date, timedelta
 
 from flask import Blueprint, abort, jsonify, request
 
-from .db import consultar, ejecutar
-from .utilidades import ErrorDeDatos, entero, texto
+from comun.db import consultar, ejecutar
+from comun.errores import ErrorDeDatos
+from comun.textos import nombre_grupo
+
+from .utilidades import entero, texto
 
 bp = Blueprint("instituciones", __name__)
 
 COMUNAS = ("San Cristóbal", "Palmitas", "Santa Elena", "Altavista", "San Antonio de Prado")
 LETRAS = "ABCDEFGH"
 ALFABETO_CODIGO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sin 0/O ni 1/I para no confundirlos
-
-
-def nombre_grupo(grado, letra):
-    return f"Grado {grado}° — grupo {letra}"
 
 
 def codigo_libre():

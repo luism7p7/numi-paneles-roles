@@ -8,7 +8,8 @@ todos los grados, así que el grado NO filtra: si completa todo, tiene 100%.
 
 from statistics import mean
 
-from .db import consultar
+from comun.db import consultar
+
 from .utilidades import normalizar
 
 DIAS_INACTIVO = 7        # sin sincronizar en una semana → Inactivo

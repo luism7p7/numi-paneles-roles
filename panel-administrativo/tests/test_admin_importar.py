@@ -5,8 +5,9 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(RAIZ / "database"))
 
-from database.init_db import conectar  # noqa: E402
 from importar_recursos_app import clasificar, es_captura, importar  # noqa: E402
+
+from database.init_db import conectar  # noqa: E402
 
 BD_PRUEBAS = "numi_test"
 

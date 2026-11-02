@@ -78,13 +78,13 @@
           <div class="col-6 col-md-3 col-xl-4">
             <div class="card stat-card">
               <div class="stat-top">Promedio del periodo <i class="bi bi-graph-up icon-teal"></i></div>
-              <div class="stat-value" id="repPromedio">52%</div>
+              <div class="stat-value" id="repPromedio">—</div>
             </div>
           </div>
           <div class="col-6 col-md-3 col-xl-4">
             <div class="card stat-card">
               <div class="stat-top">Materia más baja <i class="bi bi-exclamation-triangle icon-rose"></i></div>
-              <div class="stat-value" id="repMinimo">37%</div>
+              <div class="stat-value" id="repMinimo">—</div>
               <div class="small text-secondary fw-bold" id="repMinimoNombre">Inglés</div>
             </div>
           </div>
@@ -105,7 +105,8 @@
               <div class="table-responsive">
                 <table class="table">
                   <thead><tr><th>Estudiante</th><th class="text-end">Avance</th></tr></thead>
-                  <tbody id="tablaReporte"><!-- Lo completa app.js --></tbody>
+                  <tbody id="tablaReporte">
+</tbody>
                 </table>
               </div>
             </div>
@@ -182,8 +183,8 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-light me-auto" data-bs-dismiss="modal">Cerrar</button>
-          <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal" data-toast="Descargando el reporte en Excel…"><i class="bi bi-file-earmark-excel me-1"></i> Descargar Excel</button>
-          <button type="button" class="btn btn-primary" data-bs-dismiss="modal" data-toast="Descargando el reporte en PDF…"><i class="bi bi-file-earmark-pdf me-1"></i> Descargar PDF</button>
+          <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal" id="btnReporteExcel"><i class="bi bi-file-earmark-excel me-1"></i> Descargar Excel</button>
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal" id="btnReportePdf"><i class="bi bi-file-earmark-pdf me-1"></i> Descargar PDF</button>
         </div>
       </div>
     </div>

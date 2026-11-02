@@ -451,7 +451,7 @@ if __name__ == "__main__":
     try:
         crear_base(nombre, args.reiniciar)
     except RuntimeError as error:
-        raise SystemExit(str(error))
+        raise SystemExit(str(error)) from None
     print(f"Base `{nombre}` lista.")
     print(f"  Panel administrativo: cvelez@medellin.gov.co / {PASSWORD_DEMO}")
     print(f"  Panel docente:        luisa.munoz@ielaaldea.edu.co / {PASSWORD_DEMO}")

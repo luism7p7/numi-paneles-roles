@@ -69,7 +69,7 @@ def test_actividad_desactivada_por_el_docente_sale_inactiva(docente):
 
 def test_porcentajes_se_cortan_como_en_la_app(docente):
     """2 de 3 actividades de Español al 100% = 66,67 → la app muestra 66 (toInt), no 67."""
-    from servidor_docente.db import ejecutar
+    from comun.db import ejecutar
 
     alumno = docente.get("/api/estudiantes").get_json()[1]
     with docente.application.app_context():
@@ -83,7 +83,7 @@ def test_porcentajes_se_cortan_como_en_la_app(docente):
 
 def test_si_completa_todo_tiene_100(docente):
     """Regla de la app: suma de % ÷ (total × 100), para cualquier grado."""
-    from servidor_docente.db import consultar, ejecutar
+    from comun.db import consultar, ejecutar
 
     alumno = docente.get("/api/estudiantes").get_json()[0]
     with docente.application.app_context():
@@ -134,7 +134,7 @@ def test_descargar_reporte(docente):
 
 def test_actividad_del_panel_solo_cuenta_si_es_jugable(docente):
     """Como "toca las frutas": publicada en el panel pero sin preguntas → el niño no la puede jugar."""
-    from servidor_docente.db import ejecutar
+    from comun.db import ejecutar
 
     with docente.application.app_context():
         ejecutar("""INSERT INTO actividades (slug, nombre, materia, grado, tipo, estado, en_app)
@@ -186,7 +186,7 @@ def test_reportes_abre_en_el_periodo_de_hoy(docente, monkeypatch):
 
 def test_el_avance_de_hoy_aparece_en_reportes(docente):
     """El avance que el niño hizo hoy se ve en el periodo de hoy y en el año, no en los periodos ya cerrados."""
-    from servidor_docente.db import ejecutar
+    from comun.db import ejecutar
 
     alumno = docente.get("/api/estudiantes").get_json()[0]
     with docente.application.app_context():
@@ -197,7 +197,9 @@ def test_el_avance_de_hoy_aparece_en_reportes(docente):
     anio = docente.get("/api/reportes?periodo=anio").get_json()
     p1 = docente.get("/api/reportes?periodo=p1").get_json()
     nombre = next(e for e in docente.get("/api/estudiantes").get_json() if e["id"] == alumno["id"])["nombre"]
-    avance = lambda r: dict(map(tuple, r["estudiantes"])).get(nombre)  # noqa: E731
+    def avance(reporte):
+        return dict(map(tuple, reporte["estudiantes"])).get(nombre)
+
     assert avance(anio) > 0
     assert avance(ahora) == avance(anio)
     assert avance(p1) == 0

@@ -7,8 +7,9 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, Response, abort, current_app, jsonify
 
+from comun.db import confirmar, consultar, ejecutar
+
 from . import recursos
-from .db import confirmar, consultar, ejecutar
 from .utilidades import MESES_LARGOS, fecha_corta, slug, tamano_legible, version
 
 bp = Blueprint("monitoreo", __name__)

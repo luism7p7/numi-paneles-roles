@@ -3,8 +3,8 @@
 from flask import Blueprint, jsonify, request, session
 from werkzeug.security import check_password_hash
 
-from .db import consultar, ejecutar
-from .utilidades import error
+from comun.db import consultar, ejecutar
+from comun.errores import error
 
 bp = Blueprint("auth", __name__)
 

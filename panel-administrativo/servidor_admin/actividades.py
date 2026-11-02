@@ -4,9 +4,11 @@ import json
 
 from flask import Blueprint, abort, jsonify, request, session
 
+from comun.db import confirmar, consultar, ejecutar
+from comun.errores import ErrorDeDatos
+
 from . import plantillas, recursos
-from .db import confirmar, consultar, ejecutar
-from .utilidades import ErrorDeDatos, entero, fecha_corta, slug, texto
+from .utilidades import entero, fecha_corta, slug, texto
 
 bp = Blueprint("actividades", __name__)
 

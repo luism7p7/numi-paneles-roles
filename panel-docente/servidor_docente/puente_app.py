@@ -16,9 +16,10 @@ from datetime import date, datetime
 
 from flask import Blueprint, abort, current_app, jsonify, request, send_from_directory
 
+from comun.db import confirmar, consultar, ejecutar
+from comun.errores import ErrorDeDatos, error
+
 from . import calculos
-from .db import confirmar, consultar, ejecutar
-from .utilidades import ErrorDeDatos, error
 
 bp = Blueprint("puente_app", __name__, url_prefix="/api/app/v1")
 

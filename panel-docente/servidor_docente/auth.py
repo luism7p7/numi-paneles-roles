@@ -3,9 +3,11 @@
 from flask import Blueprint, abort, jsonify, request, session
 from werkzeug.security import check_password_hash
 
+from comun.db import consultar, ejecutar
+from comun.errores import error
+from comun.textos import iniciales, nombre_grupo
+
 from . import calculos
-from .db import consultar, ejecutar
-from .utilidades import error, iniciales, nombre_grupo
 
 bp = Blueprint("auth", __name__)
 

@@ -5,13 +5,14 @@ y agrega la API JSON en /api/... que usa js/app.js, más el puente con la app
 en /api/app/v1/...
 """
 
-from flask import Flask, abort, redirect, request, send_from_directory, session
-from werkzeug.exceptions import HTTPException
+from flask import Flask, redirect, request, session
+
+from comun.db import cerrar_db
+from comun.errores import error
+from comun.web import instalar_front
 
 from . import auth, gestion, puente_app, reportes, seguimiento
 from .config import CARPETA_PANEL, Config
-from .db import cerrar_db
-from .utilidades import ErrorDeDatos, error
 
 # Páginas que se pueden abrir sin haber iniciado sesión
 PAGINAS_PUBLICAS = {"index"}
@@ -38,31 +39,6 @@ def create_app(config_extra=None):
             return redirect("/index.html")
         return None
 
-    @app.errorhandler(ErrorDeDatos)
-    def datos_invalidos(e):
-        return error(e.mensaje, e.codigo)
-
-    @app.errorhandler(HTTPException)
-    def error_http(e):
-        if request.path.startswith("/api/"):
-            return error(e.description, e.code)
-        return e
-
-    @app.get("/")
-    def raiz():
-        return redirect("/panel.html" if "usuario_id" in session else "/index.html")
-
-    @app.get("/<nombre>.html")
-    def pagina(nombre):
-        # "Cerrar sesión" lleva a index.html: abrir el login cierra la sesión
-        if nombre == "index":
-            session.clear()
-        if not (CARPETA_PANEL / f"{nombre}.html").is_file():
-            abort(404)
-        return send_from_directory(CARPETA_PANEL, f"{nombre}.html")
-
-    @app.get("/<any(css, js, img):carpeta>/<path:archivo>")
-    def estatico(carpeta, archivo):
-        return send_from_directory(CARPETA_PANEL / carpeta, archivo)
+    instalar_front(app, CARPETA_PANEL, pagina_inicial="panel.html")
 
     return app

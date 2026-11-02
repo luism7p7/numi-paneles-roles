@@ -80,7 +80,7 @@ def test_subir_progreso_gana_el_mayor_avance(app_numi):
 
     assert subir(80, 2) == {"guardados": 1, "rechazados": 1}
     subir(40, 5)  # un avance menor no pisa el anterior
-    from servidor_docente.db import consultar
+    from comun.db import consultar
     with app_numi.application.app_context():
         fila = consultar("""SELECT p.porcentaje, p.intentos FROM progreso p JOIN estudiantes e ON e.id = p.estudiante_id
                             WHERE e.uid = 'firebase-abc'""", uno=True)
@@ -88,7 +88,7 @@ def test_subir_progreso_gana_el_mayor_avance(app_numi):
 
 
 def test_codigo_sin_usos(app_numi):
-    from servidor_docente.db import ejecutar
+    from comun.db import ejecutar
     with app_numi.application.app_context():
         ejecutar("UPDATE grupos SET codigo_usos = codigo_usos_max WHERE codigo = 'P8T2-46'")
     resp = app_numi.post("/api/app/v1/unirse", json={"uid": "otro-niño", "codigo": "P8T2-46"})
@@ -96,7 +96,7 @@ def test_codigo_sin_usos(app_numi):
 
 
 def test_codigo_vencido(app_numi):
-    from servidor_docente.db import ejecutar
+    from comun.db import ejecutar
     with app_numi.application.app_context():
         ejecutar("UPDATE grupos SET codigo_vence = '2026-01-01' WHERE codigo = 'B7C5-64'")
     assert app_numi.post("/api/app/v1/unirse", json={"uid": "n2", "codigo": "B7C5-64"}).status_code == 410
@@ -104,7 +104,7 @@ def test_codigo_vencido(app_numi):
 
 def test_actividad_de_plantilla_llega_con_contenido_y_archivos(app_numi, tmp_path):
     """Lo que necesita la app para jugar una actividad creada en el panel."""
-    from servidor_docente.db import consultar, ejecutar
+    from comun.db import consultar, ejecutar
 
     app_numi.application.config["CARPETA_UPLOADS"] = tmp_path
     (tmp_path / "app").mkdir()
@@ -141,7 +141,7 @@ def test_todas_las_plantillas_llegan_a_la_app_con_su_contenido(app_numi):
     """Cada tipo con plantilla viaja con su propio formato de contenido (ver servidor_admin/plantillas.py)."""
     import json
 
-    from servidor_docente.db import consultar, ejecutar
+    from comun.db import consultar, ejecutar
 
     contenidos = {
         "Arrastrar": {"grupos": [{"nombre": "Vivo", "imagen": None}, {"nombre": "No vivo", "imagen": None}],
@@ -171,7 +171,7 @@ def test_actividad_del_panel_solo_llega_a_los_grupos_de_su_grado(app_numi):
     """El grado que elige el administrador filtra; las pantallas que ya trae la app valen para todos."""
     import json
 
-    from servidor_docente.db import consultar, ejecutar
+    from comun.db import consultar, ejecutar
 
     contenido = json.dumps({"pares": [{"texto": "Dog", "imagen": None}, {"texto": "Cat", "imagen": None}]})
     with app_numi.application.app_context():
@@ -197,7 +197,7 @@ def test_el_docente_solo_ve_las_actividades_del_panel_de_su_grado(docente):
     """Luisa tiene 3° A, 4° B y 5° A: una actividad de 4° aparece solo en 4° B y se puede activar solo ahí."""
     import json
 
-    from servidor_docente.db import ejecutar
+    from comun.db import ejecutar
 
     contenido = json.dumps({"pares": [{"texto": "Dog", "imagen": None}, {"texto": "Cat", "imagen": None}]})
     with docente.application.app_context():

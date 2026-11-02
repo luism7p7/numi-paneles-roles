@@ -4,8 +4,9 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify
 
+from comun.db import consultar
+
 from . import monitoreo
-from .db import consultar
 from .utilidades import MESES
 
 bp = Blueprint("inicio", __name__)

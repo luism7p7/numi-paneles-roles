@@ -275,8 +275,8 @@ function enlaceBoton(texto, href) {
 }
 
 async function iniciarInicio() {
-  const cuerpoCobertura = $('.coverage-row').parentElement;
-  const cardAcciones = $('.action-item').closest('.card');
+  const cuerpoCobertura = $('#coberturaComunas');
+  const cardAcciones = $('#cardAcciones');
   const { ok, datos } = await api('/api/inicio');
   if (!ok) return mostrarError(datos);
 
@@ -306,7 +306,6 @@ async function iniciarInicio() {
   }));
 
   // Requieren acción
-  $$('.action-item', cardAcciones).forEach(n => n.remove());
   const acciones = [];
   if (t.pendientes) {
     acciones.push(itemAccion('bg-warning', `${plural(t.pendientes, 'docente pendiente', 'docentes pendientes')} de aprobación`,
@@ -1206,7 +1205,6 @@ function asegurarPaginacion(panel) {
 function iniciarRecursos() {
   const modal = $('#modalSubir');
   const botonSubir = $('.modal-footer .btn-primary', modal);
-  delete botonSubir.dataset.toast; // el mensaje lo da el resultado real de la carga
   crearPestanaVideos();
   cargarRecursos();
 
@@ -1498,7 +1496,6 @@ function iniciarUsuarios() {
   const modalCrearEl = $('#modalCrear');
   const modalImportar = $('#modalImportar');
   const botonImportar = $('.modal-footer .btn-primary', modalImportar);
-  delete botonImportar.dataset.toast; // el mensaje lo da el resultado real de la importación
   let actual = null;
   let instituciones = []; // [{id, nombre}] para saber de qué institución pedir los grupos
   tbody.replaceChildren();
@@ -1739,9 +1736,10 @@ async function iniciarHistorial() {
 
 /* ---------- Monitoreo técnico ---------- */
 function iniciarMonitoreo() {
-  const cardInformes = $('.report-item').closest('.card');
-  const cardEventos = $('.event-item').closest('.card');
-  $('.topbar [data-toast]').addEventListener('click', async () => {
+  const cardInformes = $('#cardInformes');
+  const cardEventos = $('#cardEventos');
+  $('#btnInforme').addEventListener('click', async () => {
+    showToast('Generando informe… aparecerá en Informes recientes.');
     const { ok, datos } = await api('/api/informes', { metodo: 'POST' });
     if (!ok) return mostrarError(datos);
     cargarMonitoreo(cardInformes, cardEventos);
@@ -1841,12 +1839,3 @@ const INICIALIZADORES = {
   'monitoreo.html': iniciarMonitoreo
 };
 INICIALIZADORES[PAGINA]?.();
-
-/* ---------- Avisos de demostración ---------- */
-// Van al final: algunas páginas cambian sus avisos por el resultado real de la acción.
-$$('[data-demo]').forEach(link => link.addEventListener('click', e => {
-  e.preventDefault();
-  showToast(link.dataset.demo);
-}));
-
-$$('[data-toast]').forEach(btn => btn.addEventListener('click', () => showToast(btn.dataset.toast)));

@@ -7,8 +7,18 @@ import json
 from flask import Blueprint, abort, jsonify, request, session
 from werkzeug.security import generate_password_hash
 
-from .db import confirmar, consultar, ejecutar
-from .utilidades import CORREO_VALIDO, ErrorDeDatos, correo, entero, fecha_corta, iniciales, password_temporal, texto
+from comun.db import confirmar, consultar, ejecutar
+from comun.errores import ErrorDeDatos
+from comun.textos import iniciales
+
+from .utilidades import (
+    CORREO_VALIDO,
+    correo,
+    entero,
+    fecha_corta,
+    password_temporal,
+    texto,
+)
 
 bp = Blueprint("usuarios", __name__)
 
@@ -207,7 +217,7 @@ def leer_filas(archivo):
     if filas and filas[0][0].strip().lower() == "nombre":
         filas = filas[1:]  # el archivo trae encabezado
     columnas = ("nombre", "apellido", "correo_institucional")
-    return [dict(zip(columnas, (c.strip() for c in f))) for f in filas]
+    return [dict(zip(columnas, (c.strip() for c in f), strict=False)) for f in filas]  # sobran o faltan columnas: se valida después
 
 
 @bp.post("/api/usuarios/importar")

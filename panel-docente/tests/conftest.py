@@ -7,8 +7,9 @@ import pytest
 PANEL = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(PANEL), str(PANEL.parent)]
 
-from database.init_db import PASSWORD_DEMO, crear_base  # noqa: E402
 from servidor_docente import create_app  # noqa: E402
+
+from database.init_db import PASSWORD_DEMO, crear_base  # noqa: E402
 
 # Las pruebas usan su propia base para no tocar los datos de `numi`.
 BD_PRUEBAS = "numi_test"

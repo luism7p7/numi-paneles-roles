@@ -5,25 +5,12 @@ import secrets
 import unicodedata
 from datetime import date, timedelta
 
-from flask import jsonify
+from comun.errores import ErrorDeDatos
 
 MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
 MESES_LARGOS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
                 "septiembre", "octubre", "noviembre", "diciembre"]
 CORREO_VALIDO = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-
-
-class ErrorDeDatos(Exception):
-    """Dato inválido enviado por el usuario. Se responde con 400 y el mensaje."""
-
-    def __init__(self, mensaje, codigo=400):
-        super().__init__(mensaje)
-        self.mensaje = mensaje
-        self.codigo = codigo
-
-
-def error(mensaje, codigo=400):
-    return jsonify(error=mensaje), codigo
 
 
 def fecha_corta(momento):
@@ -73,10 +60,6 @@ def slug(nombre):
 def version(valor):
     """'1.3.2' → (1, 3, 2), para poder comparar versiones."""
     return tuple(int(p) for p in re.findall(r"\d+", valor or "0"))
-
-
-def iniciales(nombre):
-    return "".join(p[0] for p in nombre.split()[:2]).upper()
 
 
 def password_temporal():

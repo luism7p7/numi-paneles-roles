@@ -406,9 +406,14 @@ async function guardarNota() {
 function iniciarEstudiantes() {
   $('#filtrosEstudiantes').addEventListener('submit', e => e.preventDefault());
   $$('#filtrosEstudiantes input, #filtrosEstudiantes select').forEach(c => c.addEventListener('input', renderEstudiantes));
-  $('.section-actions [data-toast]').addEventListener('click', () => descargarArchivo('/api/estudiantes/exportar'));
-  $('#modalFicha .modal-footer [data-toast]').addEventListener('click', () => {
-    if (fichaActual) descargarArchivo(`/api/estudiantes/${fichaActual.id}/informe`);
+  $('#btnExportar').addEventListener('click', () => {
+    showToast('Exportando la lista de estudiantes en Excel…');
+    descargarArchivo('/api/estudiantes/exportar');
+  });
+  $('#btnInformeEstudiante').addEventListener('click', () => {
+    if (!fichaActual) return;
+    showToast('Descargando el informe del estudiante en PDF…');
+    descargarArchivo(`/api/estudiantes/${fichaActual.id}/informe`);
   });
   $('#fichaNota').addEventListener('input', () => {
     clearTimeout(temporizadorNota);
@@ -586,11 +591,8 @@ async function renderReportes() {
 
 function iniciarReportes() {
   const modal = $('#modalGenerar');
-  const [botonExcel, botonPdf] = [$('.modal-footer .btn-outline-primary', modal), $('.modal-footer .btn-primary', modal)];
   // El aviso "Descargando…" solo se muestra si el reporte se puede generar
-  const avisos = { xlsx: botonExcel.dataset.toast, pdf: botonPdf.dataset.toast };
-  delete botonExcel.dataset.toast;
-  delete botonPdf.dataset.toast;
+  const avisos = { xlsx: 'Descargando el reporte en Excel…', pdf: 'Descargando el reporte en PDF…' };
 
   const fechasDelPeriodo = async () => {
     if (!periodoActual || periodoActual.clave !== $('#genPeriodo').value) {
@@ -627,8 +629,8 @@ function iniciarReportes() {
     showToast(avisos[formato]);
     descargarArchivo(`/api/reportes/descargar?${consulta}`);
   };
-  botonExcel.addEventListener('click', () => generar('xlsx'));
-  botonPdf.addEventListener('click', () => generar('pdf'));
+  $('#btnReporteExcel').addEventListener('click', () => generar('xlsx'));
+  $('#btnReportePdf').addEventListener('click', () => generar('pdf'));
 
   if (params.get('generar') === '1') bootstrap.Modal.getOrCreateInstance(modal).show();
 }
@@ -754,6 +756,3 @@ async function iniciarPanel() {
 
 if (PAGINA === 'index.html') iniciarLogin();
 else iniciarPanel();
-
-// Avisos de demostración (al final: algunas páginas los cambian por la acción real)
-$$('[data-toast]').forEach(btn => btn.addEventListener('click', () => showToast(btn.dataset.toast)));
