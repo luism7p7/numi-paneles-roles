@@ -57,7 +57,7 @@ def requieren_atencion(resumen, nombres_materias):
 def panel():
     grupo = grupo_actual()
     resumen = calculos.resumen_grupo(grupo)
-    nombres = [m["nombre_corto"] for m in calculos.materias()]
+    nombres = calculos.nombres_de_materias()
     return jsonify(
         activos=resumen["activos"],
         sin_conexion=len(resumen["estudiantes"]) - resumen["activos"],
@@ -120,7 +120,7 @@ def guardar_nota(estudiante_id):
 def exportar_estudiantes():
     grupo = grupo_actual()
     resumen = calculos.resumen_grupo(grupo)
-    nombres = [m["nombre_corto"] for m in calculos.materias()]
+    nombres = calculos.nombres_de_materias()
     filas = [
         [a["nombre"], a["avance"], *[("—" if v is None else v) for v in a["materias"]], a["racha_dias"], a["estado"],
          f"{a['ultima_sincronizacion']:%Y-%m-%d %H:%M}" if a["ultima_sincronizacion"] else "Nunca"]
@@ -136,7 +136,7 @@ def exportar_estudiantes():
 def informe_estudiante(estudiante_id):
     grupo = grupo_actual()
     alumno, ficha_json = ficha_de(grupo, estudiante_id)
-    nombres = [m["nombre_corto"] for m in calculos.materias()]
+    nombres = calculos.nombres_de_materias()
     secciones = [
         ("Resumen", ["Avance", "Racha", "Estado"], [[f"{alumno['avance']}%", ficha_json["racha"], alumno["estado"]]]),
         ("Avance por materia", ["Materia", "Avance"],
@@ -190,8 +190,8 @@ def activar_actividad(slug):
     if actividad is None:
         abort(404, "La actividad no está disponible para este grupo.")
     ejecutar(
-        """INSERT INTO grupo_actividad (grupo_id, actividad_id, activa) VALUES (%s, %s, %s)
-           ON DUPLICATE KEY UPDATE activa = VALUES(activa)""",
+        """INSERT INTO grupo_actividad (grupo_id, actividad_id, activa) VALUES (%s, %s, %s) AS nuevo
+           ON DUPLICATE KEY UPDATE activa = nuevo.activa""",
         (grupo["id"], actividad["id"], activa),
     )
     return jsonify(id=slug, activa=activa, nombre=actividad["nombre"], grupo=nombre_grupo(grupo["grado"], grupo["letra"]))

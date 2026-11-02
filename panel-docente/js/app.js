@@ -150,10 +150,10 @@ function crearModalesCompartidos() {
         <div class="modal-content">
           <div class="modal-body p-4 text-center">
             <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-            <span class="avatar avatar-lg mx-auto mb-2" style="background: var(--numi-primary); color: #fff;" data-perfil="iniciales">LM</span>
-            <h2 class="h6 fw-bold mb-0" id="perfilTitulo" data-perfil="nombre_completo">Prof. Luisa Muñoz</h2>
-            <p class="small text-secondary mb-1" data-perfil="correo">luisa.munoz@ielaaldea.edu.co</p>
-            <p class="small text-secondary" data-perfil="ubicacion">Sede principal · San Cristóbal</p>
+            <span class="avatar avatar-lg mx-auto mb-2" style="background: var(--numi-primary); color: #fff;" data-perfil="iniciales">—</span>
+            <h2 class="h6 fw-bold mb-0" id="perfilTitulo" data-perfil="nombre_completo">—</h2>
+            <p class="small text-secondary mb-1" data-perfil="correo">—</p>
+            <p class="small text-secondary" data-perfil="ubicacion">—</p>
             <div class="text-start border rounded-4 p-3 mb-3" style="background: var(--numi-primary-soft)">
               <div class="small fw-bold text-uppercase text-secondary mb-1" style="font-size: .7rem; letter-spacing: .08em">Grupo activo</div>
               <div class="fw-bold" data-group="nombre"></div>
@@ -164,7 +164,7 @@ function crearModalesCompartidos() {
               <i class="bi bi-chevron-double-right text-primary"></i>
             </a>
             <div class="text-start border rounded-4 p-3 mb-3">
-              <span class="fw-bold d-block">Institución</span><span class="small text-secondary" data-perfil="institucion_lectura">IE La Aldea · solo lectura.</span>
+              <span class="fw-bold d-block">Institución</span><span class="small text-secondary" data-perfil="institucion_lectura">—</span>
             </div>
             <a href="index.html" class="btn btn-outline-danger w-100"><i class="bi bi-box-arrow-left me-1"></i> Cerrar sesión</a>
           </div>

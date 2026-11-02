@@ -8,8 +8,7 @@ from werkzeug.utils import secure_filename
 
 from comun.db import consultar, ejecutar
 from comun.errores import ErrorDeDatos
-
-from .utilidades import version
+from comun.textos import version
 
 bp = Blueprint("recursos", __name__)
 

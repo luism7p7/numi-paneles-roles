@@ -1,7 +1,6 @@
 """Funciones pequeñas que usan varias secciones del panel."""
 
 import re
-import secrets
 import unicodedata
 from datetime import date, timedelta
 
@@ -55,17 +54,6 @@ def slug(nombre):
     """'¿Vivo o no vivo?' → 'vivo-o-no-vivo'."""
     sin_tildes = unicodedata.normalize("NFKD", nombre).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", "-", sin_tildes.lower()).strip("-") or "actividad"
-
-
-def version(valor):
-    """'1.3.2' → (1, 3, 2), para poder comparar versiones."""
-    return tuple(int(p) for p in re.findall(r"\d+", valor or "0"))
-
-
-def password_temporal():
-    alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-    caracteres = "".join(secrets.choice(alfabeto) for _ in range(8))
-    return f"{caracteres[:4]}-{caracteres[4:]}"
 
 
 def tamano_legible(bytes_):

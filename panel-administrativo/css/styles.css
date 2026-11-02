@@ -356,7 +356,6 @@ body {
 .icon-sky    { background: #e0f2fe; color: #0284c7; }
 .icon-amber  { background: #fef3c7; color: #b45309; }
 .icon-emerald{ background: #d1fae5; color: #047857; }
-.icon-rose   { background: #ffe4e6; color: #be123c; }
 
 /* ---------- Barras de cobertura ---------- */
 .coverage-row + .coverage-row {

@@ -1,7 +1,6 @@
 """Reportes por periodo y descarga en Excel o PDF."""
 
 from datetime import date
-from statistics import mean
 
 from flask import Blueprint, abort, jsonify, request
 
@@ -42,7 +41,7 @@ def datos_reporte():
     grupo = grupo_actual()
     periodo = buscar_periodo(request.args.get("periodo") or periodo_actual())
     resumen = calculos.resumen_grupo(grupo, periodo["desde"], periodo["hasta"])
-    nombres = [m["nombre_corto"] for m in calculos.materias()]
+    nombres = calculos.nombres_de_materias()
     aplicables = [(v, n) for v, n in zip(resumen["materias"], nombres, strict=True) if v is not None]
     minimo = min(aplicables) if aplicables else (0, "—")
     return jsonify(
@@ -50,7 +49,7 @@ def datos_reporte():
                  "desde": periodo["desde"].isoformat(), "hasta": periodo["hasta"].isoformat()},
         periodos=consultar("SELECT clave, nombre FROM periodos ORDER BY orden"),
         materias=[v or 0 for v in resumen["materias"]],
-        promedio=calculos.porcentaje(mean(v for v, _ in aplicables)) if aplicables else 0,
+        promedio=resumen["avance"],  # el mismo cálculo (valores exactos) que el avance de cada estudiante
         minimo=minimo[0],
         minimo_nombre=minimo[1],
         estudiantes=sorted(([a["nombre"], a["avance"]] for a in resumen["estudiantes"]), key=lambda e: -e[1]),

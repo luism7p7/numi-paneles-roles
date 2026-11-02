@@ -203,3 +203,14 @@ def test_el_avance_de_hoy_aparece_en_reportes(docente):
     assert avance(anio) > 0
     assert avance(ahora) == avance(anio)
     assert avance(p1) == 0
+
+
+def test_el_promedio_del_reporte_es_el_mismo_avance_del_panel(docente):
+    """Antes se promediaban porcentajes ya cortados y salía 1 punto menos que el avance de los estudiantes."""
+    from comun.db import ejecutar
+
+    with docente.application.app_context():  # otras pruebas dejan avances sin fecha, que un periodo no puede ubicar
+        ejecutar("UPDATE progreso SET ultima_vez = NOW() WHERE ultima_vez IS NULL")
+    panel = docente.get("/api/panel").get_json()
+    anio = docente.get("/api/reportes?periodo=anio").get_json()
+    assert anio["promedio"] == panel["avance"]

@@ -1,10 +1,10 @@
 """Instituciones y sus grupos."""
 
-import secrets
-from datetime import date, timedelta
+from datetime import date
 
 from flask import Blueprint, abort, jsonify, request
 
+from comun.codigos import codigo_de_grupo_libre, vencimiento_del_codigo
 from comun.db import consultar, ejecutar
 from comun.errores import ErrorDeDatos
 from comun.textos import nombre_grupo
@@ -15,16 +15,6 @@ bp = Blueprint("instituciones", __name__)
 
 COMUNAS = ("San Cristóbal", "Palmitas", "Santa Elena", "Altavista", "San Antonio de Prado")
 LETRAS = "ABCDEFGH"
-ALFABETO_CODIGO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sin 0/O ni 1/I para no confundirlos
-
-
-def codigo_libre():
-    """Código para que los niños se unan al grupo, p. ej. 7K4M-92 (único)."""
-    while True:
-        bloque = "".join(secrets.choice(ALFABETO_CODIGO) for _ in range(4))
-        codigo = f"{bloque}-{secrets.randbelow(90) + 10}"
-        if not consultar("SELECT 1 FROM grupos WHERE codigo = %s", (codigo,), uno=True):
-            return codigo
 
 
 def grupos_de(institucion_id):
@@ -99,7 +89,7 @@ def crear_grupo(institucion_id):
     nuevo_id = ejecutar(
         """INSERT INTO grupos (institucion_id, grado, letra, codigo, codigo_vence, paquete_actualizado)
            VALUES (%s, %s, %s, %s, %s, %s)""",
-        (institucion_id, grado, letra, codigo_libre(), date.today() + timedelta(days=30), date.today()),
+        (institucion_id, grado, letra, codigo_de_grupo_libre(), vencimiento_del_codigo(), date.today()),
     )
     return jsonify(next(g for g in grupos_de(institucion_id) if g["id"] == nuevo_id)), 201
 

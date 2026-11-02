@@ -1,10 +1,10 @@
 """Inicio de sesión del docente, su perfil y el grupo con el que trabaja."""
 
 from flask import Blueprint, abort, jsonify, request, session
-from werkzeug.security import check_password_hash
 
 from comun.db import consultar, ejecutar
 from comun.errores import error
+from comun.sesion import autenticar
 from comun.textos import iniciales, nombre_grupo
 
 from . import calculos
@@ -52,23 +52,9 @@ def grupo_json(g, resumen=None):
 
 @bp.post("/api/login")
 def login():
-    datos = request.get_json(silent=True) or {}
-    correo = str(datos.get("correo", "")).strip().lower()
-    password = str(datos.get("password", ""))
-    if not correo or not password:
-        return error("Escribe tu correo y tu contraseña.")
-
-    usuario = consultar(
-        "SELECT id, nombre, apellido, password_hash, rol, estado FROM usuarios WHERE correo = %s",
-        (correo,),
-        uno=True,
-    )
-    if usuario is None or not usuario["password_hash"] or not check_password_hash(usuario["password_hash"], password):
-        return error("Correo o contraseña incorrectos.", 401)
-    if usuario["rol"] != "Docente":
-        return error("Esta cuenta no es de docente. Usa el panel administrativo.", 403)
-    if usuario["estado"] != "Activo":
-        return error(MENSAJE_ESTADO[usuario["estado"]], 403)
+    usuario, fallo = autenticar("Docente", "Esta cuenta no es de docente. Usa el panel administrativo.", MENSAJE_ESTADO)
+    if fallo:
+        return fallo
 
     session.clear()
     session["usuario_id"] = usuario["id"]

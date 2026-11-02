@@ -1,22 +1,21 @@
 """Gestión del grupo: código para unirse, asistente de IA y paquete de conocimiento."""
 
 import json
-import secrets
 import urllib.request
-from datetime import date, timedelta
+from datetime import date
 
 from flask import Blueprint, current_app, jsonify, request
 
-from comun.db import consultar, ejecutar
+from comun.codigos import codigo_de_grupo_libre, vencimiento_del_codigo
+from comun.db import ejecutar
 from comun.errores import ErrorDeDatos, error
+from comun.textos import version
 
 from .auth import grupo_actual
 from .utilidades import fecha_larga
 
 bp = Blueprint("gestion", __name__)
 
-ALFABETO_CODIGO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sin 0/O ni 1/I para no confundirlos
-DIAS_VIGENCIA_CODIGO = 30
 GRADO_MINIMO_IA = 3  # el asistente de IA de la app solo existe para 3°, 4° y 5°
 
 
@@ -42,14 +41,9 @@ def ver():
 @bp.post("/api/gestion/codigo")
 def nuevo_codigo():
     grupo = grupo_actual()
-    while True:
-        bloque = "".join(secrets.choice(ALFABETO_CODIGO) for _ in range(4))
-        codigo = f"{bloque}-{secrets.randbelow(90) + 10}"
-        if not consultar("SELECT 1 FROM grupos WHERE codigo = %s", (codigo,), uno=True):
-            break
     ejecutar(
         "UPDATE grupos SET codigo = %s, codigo_usos = 0, codigo_vence = %s WHERE id = %s",
-        (codigo, date.today() + timedelta(days=DIAS_VIGENCIA_CODIGO), grupo["id"]),
+        (codigo_de_grupo_libre(), vencimiento_del_codigo(), grupo["id"]),
     )
     return jsonify(gestion_json(grupo_actual()))
 
@@ -71,7 +65,7 @@ def version_de_paquetes(base):
     with urllib.request.urlopen(f"{base}/api/paquetes", timeout=8) as resp:
         paquetes = json.load(resp)["paquetes"]
     versiones = [p["version"] for p in paquetes if p.get("version")]
-    return max(versiones, key=lambda v: tuple(int(x) for x in v.split(".") if x.isdigit()))
+    return max(versiones, key=version)
 
 
 @bp.post("/api/gestion/paquete")

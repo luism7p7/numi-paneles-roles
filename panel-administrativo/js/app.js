@@ -963,7 +963,6 @@ function crearEditorContenido(actividad, catalogo, selector) {
   tarjeta.append(cabecera, lista);
   filaPrincipal.after(tarjeta);
 
-  let plantillas;
   const tipo = () => $('#actTipo').value;
   const usaPlantilla = () => !enApp && tipo() in plantillas;
   // El contenido de cada tipo se conserva aparte: cambiar de tipo y volver no borra lo escrito
@@ -986,7 +985,7 @@ function crearEditorContenido(actividad, catalogo, selector) {
     lista.replaceChildren();
     plantilla.pintar(contenidoDe(tipo()), lista);
   };
-  plantillas = crearPlantillas(crearControles({ catalogo, selector }), repintar);
+  const plantillas = crearPlantillas(crearControles({ catalogo, selector }), repintar);
 
   botonAgregar.addEventListener('click', () => { plantillas[tipo()].nuevo(contenidoDe(tipo())); repintar(); });
   $('#actTipo').addEventListener('change', repintar);
@@ -1616,7 +1615,7 @@ function iniciarUsuarios() {
     });
     modalConfirmar.hide();
     if (!ok) return mostrarError(datos);
-    let mensaje = activar
+    const mensaje = activar
       ? `Se activó la cuenta de ${nombre}. Ya puede iniciar sesión en Numi.`
       : `Se desactivó la cuenta de ${nombre}. Su registro no se eliminó: sigue en la lista como Inactivo.`;
     showFlash(mensaje);

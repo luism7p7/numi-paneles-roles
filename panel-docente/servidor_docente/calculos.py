@@ -28,6 +28,10 @@ def materias():
     return consultar("SELECT clave, nombre_corto FROM materias ORDER BY orden")
 
 
+def nombres_de_materias():
+    return [m["nombre_corto"] for m in materias()]
+
+
 def estado_de(dias):
     if dias is None or dias >= DIAS_INACTIVO:
         return "Inactivo"

@@ -1,5 +1,7 @@
 """Textos que se arman igual en los dos paneles."""
 
+import re
+
 
 def iniciales(nombre):
     """'Luisa Muñoz Rendón' → 'LM'."""
@@ -8,3 +10,8 @@ def iniciales(nombre):
 
 def nombre_grupo(grado, letra):
     return f"Grado {grado}° — grupo {letra}"
+
+
+def version(valor):
+    """'1.3.2' → (1, 3, 2), para poder comparar versiones."""
+    return tuple(int(p) for p in re.findall(r"\d+", valor or "0"))

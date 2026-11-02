@@ -7,6 +7,7 @@ import json
 from flask import Blueprint, abort, jsonify, request, session
 from werkzeug.security import generate_password_hash
 
+from comun.codigos import password_temporal
 from comun.db import confirmar, consultar, ejecutar
 from comun.errores import ErrorDeDatos
 from comun.textos import iniciales
@@ -16,7 +17,6 @@ from .utilidades import (
     correo,
     entero,
     fecha_corta,
-    password_temporal,
     texto,
 )
 
@@ -151,8 +151,6 @@ def crear():
 def editar(usuario_id):
     actual = buscar(usuario_id)
     v = validar(request.get_json(silent=True) or {}, usuario_id)
-    if usuario_id == session["usuario_id"] and v["rol"] != "Administrador":
-        raise ErrorDeDatos("No puedes quitarte a ti mismo el rol de administrador.")
     if v["rol"] != actual["rol"]:
         raise ErrorDeDatos("El rol de una cuenta no se puede cambiar.")
     ejecutar(
