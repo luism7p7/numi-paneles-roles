@@ -138,7 +138,7 @@ def test_actividad_del_panel_solo_cuenta_si_es_jugable(docente):
 
     with docente.application.app_context():
         ejecutar("""INSERT INTO actividades (slug, nombre, materia, grado, tipo, estado, en_app)
-                    VALUES ('toca-las-frutas', 'toca las frutas', 'ciencias', 2, 'Selección múltiple', 'Publicada', FALSE)""")
+                    VALUES ('toca-las-frutas', 'toca las frutas', 'ciencias', 3, 'Selección múltiple', 'Publicada', FALSE)""")  # 3° A: el grupo de Luisa al iniciar sesión
     ids = [a["id"] for a in docente.get("/api/actividades").get_json()]
     assert "toca-las-frutas" not in ids and len(ids) == 16
 

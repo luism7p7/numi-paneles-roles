@@ -102,14 +102,6 @@ def test_detalle_devuelve_contenido_y_si_esta_en_la_app(admin):
     assert admin.get("/api/actividades/los-numeros").get_json()["en_app"] is True
 
 
-def test_tipo_sin_plantilla_solo_como_borrador(admin):
-    resp = admin.post("/api/actividades", json=nueva(nombre="Parejas nuevas", tipo="Memory match"))
-    assert resp.status_code == 400
-    assert "borrador" in resp.get_json()["error"].lower()
-    borrador = admin.post("/api/actividades", json=nueva(nombre="Parejas nuevas", tipo="Memory match", estado="Borrador"))
-    assert borrador.status_code == 201
-
-
 def test_contenido_incompleto_no_se_publica(admin):
     sin_correcta = pregunta(opciones=[{"texto": "A", "correcta": False}, {"texto": "B", "correcta": False}])
     dos_correctas = pregunta(opciones=[{"texto": "A", "correcta": True}, {"texto": "B", "correcta": True}])

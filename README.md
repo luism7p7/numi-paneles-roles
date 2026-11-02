@@ -16,7 +16,7 @@ Paneles web de **Numi**, la app educativa para niños de 1° a 5° de las instit
 | Base de datos | MySQL 8 con PyMySQL y SQL escrito a mano |
 | Front-end | HTML, Bootstrap 5 y JavaScript (`fetch` a la API de Flask) |
 | Archivos | openpyxl (Excel) y fpdf2 (PDF) |
-| Pruebas | pytest (63 pruebas) |
+| Pruebas | pytest (110 pruebas) |
 
 ## Cómo funciona
 
@@ -120,6 +120,37 @@ Cuentas de ejemplo (contraseña `Numi2026`):
 | POST | `/api/app/v1/unirse` | `{uid, nombre, codigo}`: el niño entra al grupo con el código del docente |
 | GET | `/api/app/v1/actividades?uid=` | Actividades publicadas y activas para el grupo del niño |
 | PUT | `/api/app/v1/progreso` | `{uid, version_app, racha_dias, items[]}`: mismo formato que `/api/v1/me/progreso` de la app |
+
+## Tipos de actividad que se arman en el panel
+
+El constructor crea actividades de seis tipos. La app las juega con una plantilla de su tipo, sin
+programar pantallas nuevas (el formato de cada contenido está en `servidor_admin/plantillas.py`):
+
+| Tipo | El niño... | Contenido |
+|------|-----------|-----------|
+| Selección múltiple | elige la respuesta correcta | `preguntas` |
+| Comprensión auditiva | escucha un audio y elige la respuesta | `preguntas` (cada una con audio) |
+| Arrastrar | arrastra cada elemento al grupo al que pertenece | `grupos` + `elementos` |
+| Arrastrar y soltar | arrastra cada elemento hasta su pareja | `parejas` |
+| Ordenar sílabas | ordena las sílabas de una palabra | `palabras` |
+| Memory match | encuentra los pares de cartas | `pares` |
+
+Un borrador puede estar incompleto; para publicar, el contenido se valida completo.
+
+## Usuarios
+
+Desde el panel solo se crean (a mano o importando un archivo) cuentas de **docente**. Las de administrador no se
+crean desde el panel y el rol de una cuenta no se puede cambiar.
+
+## Recursos de la app
+
+Las imágenes y audios del constructor son los de la app. `uploads/` no se sube a git, así que en un equipo
+nuevo hay que importarlos (se puede repetir sin duplicar):
+
+```powershell
+.\.venv\Scripts\python.exe database/importar_recursos_app.py   # lee ~/Documents/app-educativa-medellin/frontend
+.\.venv\Scripts\python.exe database/importar_recursos_app.py --app "C:/ruta/a/app-educativa-medellin/frontend"
+```
 
 ## Pruebas
 
