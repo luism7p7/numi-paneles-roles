@@ -1,0 +1,23 @@
+# Revisión de errores y estilo del código Python:   python -m pip install ruff   y luego   python -m ruff check .
+line-length = 130
+
+[lint]
+select = [
+    "E", "W",   # estilo (pycodestyle)
+    "F",        # errores: imports y variables sin usar, nombres que no existen
+    "B",        # errores probables (flake8-bugbear)
+    "C4",       # comprensiones innecesarias
+    "SIM",      # simplificaciones
+    "RET", "PIE",
+    "PLE", "PLW",
+    "RUF100",   # comentarios «noqa» que ya no hacen falta
+    "I",        # imports ordenados
+]
+ignore = [
+    "E501",     # las líneas largas se revisan a ojo
+    "SIM108", "SIM102", "RET504", "RET505", "PIE790",
+    "B008",
+]
+
+[lint.isort]
+known-first-party = ["comun", "servidor_admin", "servidor_docente", "database"]
