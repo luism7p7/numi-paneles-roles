@@ -450,11 +450,12 @@ body {
   border-radius: 99px;
 }
 
-.bar-mat { background: #0d9488; }
-.bar-esp { background: #6366f1; }
-.bar-cie { background: #22c55e; }
-.bar-soc { background: #f59e0b; }
-.bar-ing { background: #ef4444; }
+/* Colores y orden de las materias: los mismos que el menú de la app Numi */
+.bar-mat { background: #3e7dfe; }  /* Matemáticas: azul */
+.bar-cie { background: #3dcc52; }  /* Ciencias: verde */
+.bar-esp { background: #b83232; }  /* Español: rojo */
+.bar-soc { background: #f5a623; }  /* Sociales: naranja */
+.bar-ing { background: #8b5cf6; }  /* Inglés: morado */
 
 /* Lista de atención */
 .attention-item {

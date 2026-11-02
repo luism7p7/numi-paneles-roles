@@ -15,6 +15,18 @@ bp = Blueprint("reportes", __name__)
 SECCIONES = {"avance", "detalle", "evaluacion", "notas", "racha"}
 
 
+def periodo_actual():
+    """El periodo que contiene la fecha de hoy (el más corto si hay varios). Si ninguno, el año completo."""
+    hoy = date.today()
+    fila = consultar(
+        "SELECT clave FROM periodos WHERE desde <= %s AND hasta >= %s ORDER BY DATEDIFF(hasta, desde), orden LIMIT 1",
+        (hoy, hoy), uno=True,
+    )
+    if fila is None:
+        fila = consultar("SELECT clave FROM periodos ORDER BY hasta DESC, orden LIMIT 1", uno=True)
+    return fila["clave"]
+
+
 def buscar_periodo(clave):
     periodo = consultar("SELECT * FROM periodos WHERE clave = %s", (clave,), uno=True)
     if periodo is None:
@@ -25,7 +37,7 @@ def buscar_periodo(clave):
 @bp.get("/api/reportes")
 def datos_reporte():
     grupo = grupo_actual()
-    periodo = buscar_periodo(request.args.get("periodo", "p1"))
+    periodo = buscar_periodo(request.args.get("periodo") or periodo_actual())
     resumen = calculos.resumen_grupo(grupo, periodo["desde"], periodo["hasta"])
     nombres = [m["nombre_corto"] for m in calculos.materias()]
     aplicables = [(v, n) for v, n in zip(resumen["materias"], nombres) if v is not None]
@@ -33,6 +45,7 @@ def datos_reporte():
     return jsonify(
         periodo={"clave": periodo["clave"], "nombre": periodo["nombre"],
                  "desde": periodo["desde"].isoformat(), "hasta": periodo["hasta"].isoformat()},
+        periodos=consultar("SELECT clave, nombre FROM periodos ORDER BY orden"),
         materias=[v or 0 for v in resumen["materias"]],
         promedio=calculos.porcentaje(mean(v for v, _ in aplicables)) if aplicables else 0,
         minimo=minimo[0],
@@ -54,7 +67,7 @@ def descargar():
     formato = request.args.get("formato")
     if formato not in ("xlsx", "pdf"):
         raise ErrorDeDatos("El formato debe ser xlsx o pdf.")
-    periodo = buscar_periodo(request.args.get("periodo", "p1"))
+    periodo = buscar_periodo(request.args.get("periodo") or periodo_actual())
     desde, hasta = fecha_parametro("desde"), fecha_parametro("hasta")
     if desde > hasta:
         raise ErrorDeDatos("La fecha «desde» debe ser anterior a «hasta».")

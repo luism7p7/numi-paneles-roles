@@ -3,9 +3,10 @@
    Interacciones del panel y conexión con el servidor Flask (API en /api/...)
    ========================================================= */
 
-const MATERIAS = ['Matemáticas', 'Español', 'Ciencias', 'Sociales', 'Inglés'];
-const CLAVES_MATERIA = ['matematicas', 'español', 'ciencias', 'sociales', 'ingles'];
-const BAR_CLASS = ['bar-mat', 'bar-esp', 'bar-cie', 'bar-soc', 'bar-ing'];
+// Mismo orden que las materias de la base y que el menú de la app (cada lista va por posición)
+const MATERIAS = ['Matemáticas', 'Ciencias', 'Español', 'Sociales', 'Inglés'];
+const CLAVES_MATERIA = ['matematicas', 'ciencias', 'español', 'sociales', 'ingles'];
+const BAR_CLASS = ['bar-mat', 'bar-cie', 'bar-esp', 'bar-soc', 'bar-ing'];
 
 const ESTADO_CLASS = { 'Al día': 'status-success', 'Sin sincronizar': 'status-info', 'Inactivo': 'status-danger', 'Activa': 'status-success', 'Inactiva': 'status-muted' };
 
@@ -530,13 +531,30 @@ function iniciarActividades() {
 
 /* ---------- Reportes ---------- */
 let periodoActual = null;
+let periodosListos = false;
+
+// Los periodos vienen del servidor (así cubren todo el año y no quedan opciones sin datos)
+function llenarPeriodos(periodos) {
+  ['#periodo', '#genPeriodo'].forEach(selector => {
+    $(selector).replaceChildren(...periodos.map(p => {
+      const opcion = el('option', '', p.nombre);
+      opcion.value = p.clave;
+      return opcion;
+    }));
+  });
+  periodosListos = true;
+}
 
 async function renderReportes() {
   const grafico = $('#graficoMaterias');
   if (!grafico) return;
-  const { ok, datos } = await api(`/api/reportes?periodo=${encodeURIComponent($('#periodo').value)}`);
+  // Al abrir la página no hay periodo elegido: el servidor responde con el de hoy
+  const elegido = periodosListos ? $('#periodo').value : '';
+  const { ok, datos } = await api(`/api/reportes${elegido ? `?periodo=${encodeURIComponent(elegido)}` : ''}`);
   if (!ok) return mostrarError(datos);
   periodoActual = datos.periodo;
+  if (!periodosListos) llenarPeriodos(datos.periodos);
+  $('#periodo').value = datos.periodo.clave;
 
   $('#repPromedio').textContent = `${datos.promedio}%`;
   $('#repMinimo').textContent = `${datos.minimo}%`;
@@ -592,7 +610,7 @@ function iniciarReportes() {
   $('#genPeriodo').addEventListener('change', fechasDelPeriodo);
 
   const generar = formato => {
-    const materias = ['#mMat', '#mEsp', '#mCie', '#mSoc', '#mIng'].map((id, i) => ($(id).checked ? CLAVES_MATERIA[i] : null)).filter(Boolean);
+    const materias = ['#mMat', '#mCie', '#mEsp', '#mSoc', '#mIng'].map((id, i) => ($(id).checked ? CLAVES_MATERIA[i] : null)).filter(Boolean);
     const incluir = [['#iAvance', 'avance'], ['#iDetalle', 'detalle'], ['#iEval', 'evaluacion'], ['#iNotas', 'notas'], ['#iRacha', 'racha']]
       .filter(([id]) => $(id).checked).map(([, clave]) => clave);
     if (!materias.length) return showToast('Elige al menos una materia.');

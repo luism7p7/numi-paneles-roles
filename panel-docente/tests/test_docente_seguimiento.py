@@ -78,7 +78,7 @@ def test_porcentajes_se_cortan_como_en_la_app(docente):
             ejecutar("""INSERT INTO progreso (estudiante_id, grado, materia, actividad, porcentaje, intentos)
                         VALUES (%s, 2, 'español', %s, 100, 1)""", (alumno["id"], actividad))
     ficha = docente.get(f"/api/estudiantes/{alumno['id']}").get_json()
-    assert ficha["materias"][1] == 66
+    assert ficha["materias"][2] == 66  # Español es la tercera: Matemáticas, Ciencias, Español, Sociales, Inglés
 
 
 def test_si_completa_todo_tiene_100(docente):
@@ -147,3 +147,57 @@ def test_actividad_del_panel_solo_cuenta_si_es_jugable(docente):
                     WHERE slug = 'toca-las-frutas'""")
     ids = [a["id"] for a in docente.get("/api/actividades").get_json()]
     assert "toca-las-frutas" in ids and len(ids) == 17
+
+
+def test_las_materias_van_en_el_orden_del_menu_de_la_app(docente):
+    from servidor_docente import calculos
+
+    with docente.application.app_context():
+        assert [m["clave"] for m in calculos.materias()] == ["matematicas", "ciencias", "español", "sociales", "ingles"]
+    reporte = docente.get("/api/reportes?periodo=anio").get_json()
+    assert len(reporte["materias"]) == 5
+
+
+def test_reportes_abre_en_el_periodo_de_hoy(docente, monkeypatch):
+    """Antes abría siempre en el Periodo 1: el avance de hoy salía en 0 %."""
+    from datetime import date
+
+    from servidor_docente import reportes
+
+    def hoy(dia):
+        class Fecha(date):
+            @classmethod
+            def today(cls):
+                return dia
+        monkeypatch.setattr(reportes, "date", Fecha)
+
+    esperado = {
+        date(2026, 2, 10): "p1", date(2026, 5, 4): "p2", date(2026, 8, 3): "p3", date(2026, 11, 2): "p4",
+        date(2026, 6, 25): "anio",   # vacaciones de mitad de año: ningún periodo, vale el año completo
+        date(2026, 12, 15): "anio",  # después del Periodo 4
+        date(2027, 3, 1): "anio",    # año siguiente: el más reciente
+    }
+    for dia, clave in esperado.items():
+        hoy(dia)
+        datos = docente.get("/api/reportes").get_json()
+        assert datos["periodo"]["clave"] == clave, dia
+    assert [p["clave"] for p in datos["periodos"]] == ["p1", "p2", "p3", "p4", "s1", "s2", "anio"]
+
+
+def test_el_avance_de_hoy_aparece_en_reportes(docente):
+    """El avance que el niño hizo hoy se ve en el periodo de hoy y en el año, no en los periodos ya cerrados."""
+    from servidor_docente.db import ejecutar
+
+    alumno = docente.get("/api/estudiantes").get_json()[0]
+    with docente.application.app_context():
+        ejecutar("DELETE FROM progreso WHERE estudiante_id = %s", (alumno["id"],))
+        ejecutar("""INSERT INTO progreso (estudiante_id, grado, materia, actividad, porcentaje, intentos, ultima_vez)
+                    VALUES (%s, 3, 'matematicas', 'Los números', 100, 1, NOW())""", (alumno["id"],))
+    ahora = docente.get("/api/reportes").get_json()          # el periodo de hoy
+    anio = docente.get("/api/reportes?periodo=anio").get_json()
+    p1 = docente.get("/api/reportes?periodo=p1").get_json()
+    nombre = next(e for e in docente.get("/api/estudiantes").get_json() if e["id"] == alumno["id"])["nombre"]
+    avance = lambda r: dict(map(tuple, r["estudiantes"])).get(nombre)  # noqa: E731
+    assert avance(anio) > 0
+    assert avance(ahora) == avance(anio)
+    assert avance(p1) == 0

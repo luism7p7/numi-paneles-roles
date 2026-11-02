@@ -25,10 +25,11 @@ load_dotenv(CARPETA.parent / ".env")
 PASSWORD_DEMO = "Numi2026"
 
 # (clave usada por la app, nombre, nombre corto, carpeta de recursos, orden)
+# El orden es el del menú de la app: Matemáticas, Ciencias, Español, Sociales, Inglés.
 MATERIAS = [
     ("matematicas", "Matemáticas", "Matemáticas", "matematicas", 1),
-    ("español", "Español", "Español", "espanol", 2),
-    ("ciencias", "Ciencias naturales", "Ciencias", "ciencias", 3),
+    ("ciencias", "Ciencias naturales", "Ciencias", "ciencias", 2),
+    ("español", "Español", "Español", "espanol", 3),
     ("sociales", "Sociales", "Sociales", "sociales", 4),
     ("ingles", "Inglés", "Inglés", "ingles", 5),
 ]
@@ -174,8 +175,11 @@ ACTIVIDAD_RECURSOS = {
 PERIODOS = [
     ("p1", "Periodo 1", date(2026, 1, 26), date(2026, 4, 3), 1),
     ("p2", "Periodo 2", date(2026, 4, 6), date(2026, 6, 19), 2),
-    ("s1", "Semestre 1", date(2026, 1, 26), date(2026, 6, 19), 3),
-    ("anio", "Año 2026", date(2026, 1, 1), date(2026, 12, 31), 4),
+    ("p3", "Periodo 3", date(2026, 7, 6), date(2026, 9, 18), 3),
+    ("p4", "Periodo 4", date(2026, 9, 21), date(2026, 11, 27), 4),
+    ("s1", "Semestre 1", date(2026, 1, 26), date(2026, 6, 19), 5),
+    ("s2", "Semestre 2", date(2026, 7, 6), date(2026, 11, 27), 6),
+    ("anio", "Año 2026", date(2026, 1, 1), date(2026, 12, 31), 7),
 ]
 
 DIAS_SIN_SINCRONIZAR = {"Al día": (0, 1), "Sin sincronizar": (2, 5), "Inactivo": (8, 16)}
@@ -417,6 +421,17 @@ def migrar(nombre):
                 cur.execute("ALTER TABLE actividades ADD contenido JSON NULL AFTER en_app")
                 aplicados.append("actividades.contenido")
             cur.execute("ALTER TABLE recursos MODIFY tipo ENUM('Imagen', 'Audio', 'Video') NOT NULL")
+            # Orden de las materias como en el menú de la app y periodos que cubren todo el año
+            cambiadas = sum(cur.execute("UPDATE materias SET orden = %s WHERE clave = %s AND orden <> %s", (m[4], m[0], m[4]))
+                            for m in MATERIAS)
+            if cambiadas:
+                aplicados.append("materias.orden")
+            nuevos = sum(cur.execute(
+                """INSERT INTO periodos VALUES (%s, %s, %s, %s, %s) AS nuevo
+                   ON DUPLICATE KEY UPDATE nombre = nuevo.nombre, desde = nuevo.desde, hasta = nuevo.hasta, orden = nuevo.orden""",
+                p) for p in PERIODOS)
+            if nuevos:
+                aplicados.append("periodos")
         con.commit()
     finally:
         con.close()
