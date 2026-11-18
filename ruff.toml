@@ -1,7 +1,7 @@
 # Revisión de errores y estilo del código Python:   python -m pip install ruff   y luego   python -m ruff check .
 line-length = 130
 
-exclude = ["panel-administrativo", "panel-docente", "comun", "node_modules"]  # lo viejo se borra al final del refactor
+exclude = ["node_modules", "frontend-admin", "frontend-docente"]
 
 [lint]
 select = [

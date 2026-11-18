@@ -9,4 +9,3 @@ dist/
 # Archivos que se suben desde Recursos (el administrador)
 api/uploads/*
 !api/uploads/.gitkeep
-panel-administrativo/uploads/
