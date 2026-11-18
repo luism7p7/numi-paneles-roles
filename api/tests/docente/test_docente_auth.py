@@ -1,14 +1,7 @@
 from database.init_db import PASSWORD_DEMO
 
 
-def test_sirve_el_front_end_sin_cambios(client):
-    for ruta in ("/index.html", "/css/styles.css", "/js/app.js", "/img/logo-numi.png"):
-        assert client.get(ruta).status_code == 200
-    assert client.get("/app.py").status_code == 404
-
-
 def test_sin_sesion(client):
-    assert client.get("/panel.html").status_code == 302
     assert client.get("/api/panel").status_code == 401
 
 

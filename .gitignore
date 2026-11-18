@@ -2,6 +2,11 @@
 .venv/
 __pycache__/
 .pytest_cache/
+.ruff_cache/
 *.pyc
-# Archivos que se suben desde Recursos (panel administrativo)
+node_modules/
+dist/
+# Archivos que se suben desde Recursos (el administrador)
+api/uploads/*
+!api/uploads/.gitkeep
 panel-administrativo/uploads/

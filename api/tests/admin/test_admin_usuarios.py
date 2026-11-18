@@ -9,7 +9,7 @@ def crear(admin, **cambios):
 
 def crear_admin_en_la_base(admin, correo):
     """Las cuentas de administrador ya no se crean por la API: se insertan directo, como en la instalación."""
-    from comun.db import ejecutar
+    from app.compartido.base_datos import ejecutar
 
     with admin.application.app_context():
         nuevo_id = ejecutar(

@@ -69,7 +69,7 @@ def test_actividad_desactivada_por_el_docente_sale_inactiva(docente):
 
 def test_porcentajes_se_cortan_como_en_la_app(docente):
     """2 de 3 actividades de Español al 100% = 66,67 → la app muestra 66 (toInt), no 67."""
-    from comun.db import ejecutar
+    from app.compartido.base_datos import ejecutar
 
     alumno = docente.get("/api/estudiantes").get_json()[1]
     with docente.application.app_context():
@@ -83,7 +83,7 @@ def test_porcentajes_se_cortan_como_en_la_app(docente):
 
 def test_si_completa_todo_tiene_100(docente):
     """Regla de la app: suma de % ÷ (total × 100), para cualquier grado."""
-    from comun.db import consultar, ejecutar
+    from app.compartido.base_datos import consultar, ejecutar
 
     alumno = docente.get("/api/estudiantes").get_json()[0]
     with docente.application.app_context():
@@ -134,7 +134,7 @@ def test_descargar_reporte(docente):
 
 def test_actividad_del_panel_solo_cuenta_si_es_jugable(docente):
     """Como "toca las frutas": publicada en el panel pero sin preguntas → el niño no la puede jugar."""
-    from comun.db import ejecutar
+    from app.compartido.base_datos import ejecutar
 
     with docente.application.app_context():
         ejecutar("""INSERT INTO actividades (slug, nombre, materia, grado, tipo, estado, en_app)
@@ -150,10 +150,10 @@ def test_actividad_del_panel_solo_cuenta_si_es_jugable(docente):
 
 
 def test_las_materias_van_en_el_orden_del_menu_de_la_app(docente):
-    from servidor_docente import calculos
+    from app.dominios.seguimiento import repositorios
 
     with docente.application.app_context():
-        assert [m["clave"] for m in calculos.materias()] == ["matematicas", "ciencias", "español", "sociales", "ingles"]
+        assert [m["clave"] for m in repositorios.materias()] == ["matematicas", "ciencias", "español", "sociales", "ingles"]
     reporte = docente.get("/api/reportes?periodo=anio").get_json()
     assert len(reporte["materias"]) == 5
 
@@ -162,7 +162,7 @@ def test_reportes_abre_en_el_periodo_de_hoy(docente, monkeypatch):
     """Antes abría siempre en el Periodo 1: el avance de hoy salía en 0 %."""
     from datetime import date
 
-    from servidor_docente import reportes
+    from app.dominios.reportes import repositorios as reportes
 
     def hoy(dia):
         class Fecha(date):
@@ -186,7 +186,7 @@ def test_reportes_abre_en_el_periodo_de_hoy(docente, monkeypatch):
 
 def test_el_avance_de_hoy_aparece_en_reportes(docente):
     """El avance que el niño hizo hoy se ve en el periodo de hoy y en el año, no en los periodos ya cerrados."""
-    from comun.db import ejecutar
+    from app.compartido.base_datos import ejecutar
 
     alumno = docente.get("/api/estudiantes").get_json()[0]
     with docente.application.app_context():
@@ -207,7 +207,7 @@ def test_el_avance_de_hoy_aparece_en_reportes(docente):
 
 def test_el_promedio_del_reporte_es_el_mismo_avance_del_panel(docente):
     """Antes se promediaban porcentajes ya cortados y salía 1 punto menos que el avance de los estudiantes."""
-    from comun.db import ejecutar
+    from app.compartido.base_datos import ejecutar
 
     with docente.application.app_context():  # otras pruebas dejan avances sin fecha, que un periodo no puede ubicar
         ejecutar("UPDATE progreso SET ultima_vez = NOW() WHERE ultima_vez IS NULL")

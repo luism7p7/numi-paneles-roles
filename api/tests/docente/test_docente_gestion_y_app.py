@@ -1,4 +1,4 @@
-from servidor_docente import gestion
+from app.integraciones import backend_app
 
 
 def test_gestion(docente):
@@ -28,7 +28,7 @@ def test_paquete_sin_backend_configurado(docente):
 
 def test_paquete_consulta_el_backend_de_la_app(docente, monkeypatch):
     docente.application.config["APP_API_URL"] = "http://backend-de-prueba"
-    monkeypatch.setattr(gestion, "version_de_paquetes", lambda base: "2.3.0")
+    monkeypatch.setattr(backend_app, "version_mas_reciente_de_paquetes", lambda base: "2.3.0")
     datos = docente.post("/api/gestion/paquete").get_json()
     assert datos["paquete"] == "v2.3.0 · 340 MB · actualizado hoy"
 
@@ -39,7 +39,7 @@ def test_paquete_con_backend_caido(docente, monkeypatch):
     def falla(base):
         raise OSError("sin conexión")
 
-    monkeypatch.setattr(gestion, "version_de_paquetes", falla)
+    monkeypatch.setattr(backend_app, "version_mas_reciente_de_paquetes", falla)
     assert docente.post("/api/gestion/paquete").status_code == 502
 
 
@@ -47,8 +47,7 @@ def test_paquete_con_backend_caido(docente, monkeypatch):
 
 def test_puente_exige_clave(base_de_pruebas, client):
     assert client.get("/api/app/v1/actividades?uid=x").status_code == 401
-    client.environ_base["HTTP_X_API_KEY"] = "otra"
-    assert client.get("/api/app/v1/actividades?uid=x").status_code == 401
+    assert client.get("/api/app/v1/actividades?uid=x", headers={"X-Api-Key": "otra"}).status_code == 401
 
 
 def test_unirse_con_el_codigo_del_grupo(app_numi):
@@ -80,7 +79,7 @@ def test_subir_progreso_gana_el_mayor_avance(app_numi):
 
     assert subir(80, 2) == {"guardados": 1, "rechazados": 1}
     subir(40, 5)  # un avance menor no pisa el anterior
-    from comun.db import consultar
+    from app.compartido.base_datos import consultar
     with app_numi.application.app_context():
         fila = consultar("""SELECT p.porcentaje, p.intentos FROM progreso p JOIN estudiantes e ON e.id = p.estudiante_id
                             WHERE e.uid = 'firebase-abc'""", uno=True)
@@ -88,7 +87,7 @@ def test_subir_progreso_gana_el_mayor_avance(app_numi):
 
 
 def test_codigo_sin_usos(app_numi):
-    from comun.db import ejecutar
+    from app.compartido.base_datos import ejecutar
     with app_numi.application.app_context():
         ejecutar("UPDATE grupos SET codigo_usos = codigo_usos_max WHERE codigo = 'P8T2-46'")
     resp = app_numi.post("/api/app/v1/unirse", json={"uid": "otro-niño", "codigo": "P8T2-46"})
@@ -96,7 +95,7 @@ def test_codigo_sin_usos(app_numi):
 
 
 def test_codigo_vencido(app_numi):
-    from comun.db import ejecutar
+    from app.compartido.base_datos import ejecutar
     with app_numi.application.app_context():
         ejecutar("UPDATE grupos SET codigo_vence = '2026-01-01' WHERE codigo = 'B7C5-64'")
     assert app_numi.post("/api/app/v1/unirse", json={"uid": "n2", "codigo": "B7C5-64"}).status_code == 410
@@ -104,7 +103,7 @@ def test_codigo_vencido(app_numi):
 
 def test_actividad_de_plantilla_llega_con_contenido_y_archivos(app_numi, tmp_path):
     """Lo que necesita la app para jugar una actividad creada en el panel."""
-    from comun.db import consultar, ejecutar
+    from app.compartido.base_datos import consultar, ejecutar
 
     app_numi.application.config["CARPETA_UPLOADS"] = tmp_path
     (tmp_path / "app").mkdir()
@@ -138,10 +137,10 @@ def test_actividad_de_plantilla_llega_con_contenido_y_archivos(app_numi, tmp_pat
 
 
 def test_todas_las_plantillas_llegan_a_la_app_con_su_contenido(app_numi):
-    """Cada tipo con plantilla viaja con su propio formato de contenido (ver servidor_admin/plantillas.py)."""
+    """Cada tipo con plantilla viaja con su propio formato de contenido (ver app/dominios/actividades/plantillas.py)."""
     import json
 
-    from comun.db import consultar, ejecutar
+    from app.compartido.base_datos import consultar, ejecutar
 
     contenidos = {
         "Arrastrar": {"grupos": [{"nombre": "Vivo", "imagen": None}, {"nombre": "No vivo", "imagen": None}],
@@ -171,7 +170,7 @@ def test_actividad_del_panel_solo_llega_a_los_grupos_de_su_grado(app_numi):
     """El grado que elige el administrador filtra; las pantallas que ya trae la app valen para todos."""
     import json
 
-    from comun.db import consultar, ejecutar
+    from app.compartido.base_datos import consultar, ejecutar
 
     contenido = json.dumps({"pares": [{"texto": "Dog", "imagen": None}, {"texto": "Cat", "imagen": None}]})
     with app_numi.application.app_context():
@@ -197,7 +196,7 @@ def test_el_docente_solo_ve_las_actividades_del_panel_de_su_grado(docente):
     """Luisa tiene 3° A, 4° B y 5° A: una actividad de 4° aparece solo en 4° B y se puede activar solo ahí."""
     import json
 
-    from comun.db import ejecutar
+    from app.compartido.base_datos import ejecutar
 
     contenido = json.dumps({"pares": [{"texto": "Dog", "imagen": None}, {"texto": "Cat", "imagen": None}]})
     with docente.application.app_context():

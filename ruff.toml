@@ -1,6 +1,8 @@
 # Revisión de errores y estilo del código Python:   python -m pip install ruff   y luego   python -m ruff check .
 line-length = 130
 
+exclude = ["panel-administrativo", "panel-docente", "comun", "node_modules"]  # lo viejo se borra al final del refactor
+
 [lint]
 select = [
     "E", "W",   # estilo (pycodestyle)
@@ -20,4 +22,4 @@ ignore = [
 ]
 
 [lint.isort]
-known-first-party = ["comun", "servidor_admin", "servidor_docente", "database"]
+known-first-party = ["app", "database", "soporte"]

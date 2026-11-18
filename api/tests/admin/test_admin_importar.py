@@ -2,7 +2,7 @@ import io
 import sys
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parents[2]
+RAIZ = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(RAIZ / "database"))
 
 from importar_recursos_app import clasificar, es_captura, importar  # noqa: E402
@@ -75,7 +75,7 @@ def test_importa_copia_y_no_duplica(base_de_pruebas, admin, tmp_path):
     assert set(recursos) == {"bombero.png", "pantalla 2/flor.png", "silaba.mp3", "animations/planta_creciendo.mp4"}
     flor = recursos["pantalla 2/flor.png"]
     assert flor["carpeta"] == "actividades/ciencias" and flor["compatible"]
-    assert flor["url"] == "/uploads/app/images/actividades/ciencias_naturales/pantalla%202/flor.png"
+    assert flor["url"] == "/api/v1/archivos/app/images/actividades/ciencias_naturales/pantalla%202/flor.png"
     assert admin.get(flor["url"]).data == b"\x89PNG-2"  # el navegador puede mostrar la miniatura
     assert recursos["animations/planta_creciendo.mp4"]["tipo"] == "Video"
 

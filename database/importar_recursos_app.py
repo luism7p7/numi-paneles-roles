@@ -1,6 +1,6 @@
 """Importa a Recursos (panel administrativo) las imágenes, audios y videos reales de la app.
 
-Copia cada archivo de frontend/assets de la app a panel-administrativo/uploads/app/
+Copia cada archivo de frontend/assets de la app a api/uploads/app/
 y lo registra en la tabla `recursos` con la carpeta de su materia. Se puede
 ejecutar varias veces: solo agrega lo nuevo.
 
@@ -19,7 +19,7 @@ from pathlib import Path
 
 from init_db import CARPETA, conectar
 
-CARPETA_UPLOADS = CARPETA.parent / "panel-administrativo" / "uploads"
+CARPETA_UPLOADS = CARPETA.parent / "api" / "uploads"
 APP_POR_DEFECTO = Path.home() / "Documents" / "app-educativa-medellin" / "frontend"
 
 TIPOS = {".png": "Imagen", ".jpg": "Imagen", ".jpeg": "Imagen", ".mp3": "Audio", ".mp4": "Video"}

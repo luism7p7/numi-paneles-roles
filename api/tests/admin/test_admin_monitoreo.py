@@ -1,6 +1,6 @@
 import io
 
-from servidor_admin import monitoreo
+from app.integraciones import backend_app
 
 
 def test_inicio(admin):
@@ -20,7 +20,7 @@ def test_monitoreo_sin_configurar(admin):
 
 def test_servicio_caido_crea_evento_y_aparece_en_inicio(admin, monkeypatch):
     admin.application.config["APP_API_URL"] = "http://backend-de-prueba"
-    monkeypatch.setattr(monitoreo, "responde", lambda url: not url.endswith("/api/paquetes"))
+    monkeypatch.setattr(backend_app, "responde", lambda url: not url.endswith("/api/paquetes"))
     datos = admin.get("/api/monitoreo").get_json()
     assert [s["operativo"] for s in datos["servicios"]] == [True, False]
     assert datos["eventos"][0] == {"nivel": "Crítico", "mensaje": "RAG API sin respuesta", "fecha": datos["eventos"][0]["fecha"]}
@@ -55,7 +55,7 @@ def test_subir_recursos(admin):
     assert resp.status_code == 201
     assert resp.get_json()["subidos"] == ["gato_feliz.png"]
     assert "virus.exe" in resp.get_json()["omitidos"][0]
-    assert admin.get("/uploads/actividades/ciencias/gato_feliz.png").status_code == 200
+    assert admin.get("/api/v1/archivos/actividades/ciencias/gato_feliz.png").status_code == 200
     # repetido
     otra = {"carpeta": "actividades/ciencias", "archivos": [(io.BytesIO(b"x"), "gato_feliz.png")]}
     assert admin.post("/api/recursos", data=otra, content_type="multipart/form-data").status_code == 400
