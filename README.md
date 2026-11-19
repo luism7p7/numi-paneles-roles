@@ -9,6 +9,19 @@ Paneles web de **Numi**, la app educativa para niños de 1° a 5° de las instit
   Excel/PDF y código del grupo.
 - **API** (http://localhost:5001/api/v1): un solo backend que usan los dos paneles y la app del celular.
 
+## Repositorios del proyecto
+
+Numi se entrega en dos repositorios públicos que trabajan juntos:
+
+| Parte | Repositorio | Carpeta |
+| :-- | :-- | :-- |
+| **Frontend web**: panel administrativo y panel docente | [numi-paneles-roles](https://github.com/luism7p7/numi-paneles-roles) (este) | `frontend-admin/` y `frontend-docente/` |
+| **Backend web**: API de los paneles (Flask + MySQL) | [numi-paneles-roles](https://github.com/luism7p7/numi-paneles-roles) (este) | `api/` |
+| **Frontend móvil**: app del estudiante (Flutter) | [app-educativa-medellin](https://github.com/geminitodo5-sketch/app-educativa-medellin) | `frontend/` |
+| **Backend de la app** (FastAPI) | [app-educativa-medellin](https://github.com/geminitodo5-sketch/app-educativa-medellin) | `backend/` |
+
+El celular habla con el backend de la app, y este con la API de los paneles (ver «Conectar con la app del celular»).
+
 ## Tecnologías
 
 | Capa | Tecnología |
@@ -19,7 +32,7 @@ Paneles web de **Numi**, la app educativa para niños de 1° a 5° de las instit
 | Base de datos | MySQL 8 con PyMySQL y SQL escrito a mano |
 | Paneles | Dos SPAs con Vite, Bootstrap 5 y JavaScript (`fetch` a la API) |
 | Archivos | openpyxl (Excel) y fpdf2 (PDF) |
-| Pruebas | pytest (123 pruebas) |
+| Pruebas | pytest (126 pruebas) |
 | Calidad | ruff (`python -m ruff check .`) |
 
 ## Cómo funciona
@@ -257,3 +270,4 @@ Proyecto hecho en equipo como parte de Numi, la aplicación educativa offline pa
 | **Luis Miguel Muñoz Rendón** | [GitHub](https://github.com/luism7p7) · [Portafolio](https://luism7p7.github.io) |
 | **Alexander Mejía Ospina** | [GitHub](https://github.com/AlexanderM-Code) · [Portafolio](https://alexanderm-code.github.io) |
 | **Santiago Mayorga Hueso** | [GitHub](https://github.com/qxsantx) |
+| **Santiago Rodríguez** | |
