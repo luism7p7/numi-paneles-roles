@@ -74,6 +74,15 @@ body {
   color: var(--numi-primary-dark);
 }
 
+.btn-icon {
+  width: 36px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .form-control,
 .form-select {
   border-radius: 12px;

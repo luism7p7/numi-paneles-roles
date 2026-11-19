@@ -21,6 +21,7 @@ export function ConstructorPage() {
           </ol>
         </nav>
         <div class="topbar-actions">
+          <a href="#/actividades" class="btn btn-light btn-sm" id="btnCancelar">Cancelar</a>
           <a href="#/borradores?msg=borrador" class="btn btn-outline-secondary btn-sm" id="btnBorrador"><i class="bi bi-save me-1"></i> Guardar borrador</a>
           <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalResumen"><i class="bi bi-send me-1"></i> Publicar</button>
         </div>
@@ -183,6 +184,7 @@ export async function mountConstructorPage({ navigate, query }) {
     enlace.textContent = actividad.nombre;
     crumb.appendChild(enlace);
     $('#resEstado').textContent = 'Publicada (reemplaza la versión actual)';
+    $('#btnCancelar').href = `#/actividad-detalle?id=${encodeURIComponent(actividad.id)}`; // Cancelar vuelve a la actividad, sin guardar
   }
 
   const selector = crearSelectorRecursos(catalogo);

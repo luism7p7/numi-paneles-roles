@@ -9,9 +9,9 @@ import {
 } from '../api/seguimiento.api.js';
 import { estado } from '../state/docente.store.js';
 import { statusBadge } from '../utils/badges.js';
-import { BAR_CLASS, MATERIAS } from '../utils/constantes.js';
+import { BAR_CLASS, ICONO_MATERIA, MATERIAS } from '../utils/constantes.js';
 import { guardarArchivo } from '../utils/descargas.js';
-import { $, $$, el, iniciales } from '../utils/dom.js';
+import { $, $$, botonVer, el, icono } from '../utils/dom.js';
 import { mostrarError, showToast } from '../utils/toast.js';
 
 export function EstudiantesPage() {
@@ -67,7 +67,7 @@ export function EstudiantesPage() {
             </table>
           </div>
           <div class="table-footer">
-            <span id="contadorEstudiantes">0 de 0 estudiantes</span> · toca “Ver estudiante” para abrir la ficha completa.
+            <span id="contadorEstudiantes">0 de 0 estudiantes</span> · toca el ojo <i class="bi bi-eye"></i> para abrir la ficha completa.
           </div>
         </div>
       </main>
@@ -87,26 +87,26 @@ export function EstudiantesPage() {
         </div>
         <div class="modal-body">
           <div class="row g-3 mb-4">
-            <div class="col-4"><div class="kpi-box"><div class="label">Avance</div><div class="value" id="fichaAvance">64%</div></div></div>
-            <div class="col-4"><div class="kpi-box"><div class="label">Racha</div><div class="value" id="fichaRacha">6 d</div></div></div>
-            <div class="col-4"><div class="kpi-box"><div class="label">Estado</div><div class="value fs-6 pt-1" id="fichaEstado"></div></div></div>
+            <div class="col-4"><div class="kpi-box"><div class="label"><i class="bi bi-graph-up-arrow text-primary me-1"></i>Avance</div><div class="value" id="fichaAvance">64%</div></div></div>
+            <div class="col-4"><div class="kpi-box"><div class="label"><i class="bi bi-fire text-warning me-1"></i>Racha</div><div class="value" id="fichaRacha">6 d</div></div></div>
+            <div class="col-4"><div class="kpi-box"><div class="label"><i class="bi bi-wifi text-info me-1"></i>Estado</div><div class="value fs-6 pt-1" id="fichaEstado"></div></div></div>
           </div>
 
           <div class="row g-4">
             <div class="col-md-6">
-              <h3 class="h6 fw-bold mb-3">Por materia</h3>
+              <h3 class="h6 fw-bold mb-3"><i class="bi bi-bar-chart-line text-primary me-2"></i>Por materia</h3>
               <div id="fichaMaterias"></div>
             </div>
             <div class="col-md-6">
-              <h3 class="h6 fw-bold mb-3">Actividades</h3>
+              <h3 class="h6 fw-bold mb-3"><i class="bi bi-puzzle text-primary me-2"></i>Actividades</h3>
               <ul class="list-group list-group-flush mb-4" id="fichaActividades"></ul>
-              <h3 class="h6 fw-bold mb-3">Evaluación</h3>
+              <h3 class="h6 fw-bold mb-3"><i class="bi bi-clipboard-check text-primary me-2"></i>Evaluación</h3>
               <ul class="list-group list-group-flush" id="fichaEvaluacion"></ul>
             </div>
           </div>
 
           <div class="mt-4">
-            <label class="form-label" for="fichaNota">Nota del docente</label>
+            <label class="form-label" for="fichaNota"><i class="bi bi-journal-text text-primary me-2"></i>Nota del docente</label>
             <textarea class="form-control" id="fichaNota" rows="3" placeholder="Escribe una observación sobre el estudiante…"></textarea>
           </div>
         </div>
@@ -145,10 +145,7 @@ async function pintarEstudiantes() {
     const valor = materia === '' ? alumno.avance : alumno.materias[materia];
     const tr = el('tr');
 
-    const tdNombre = el('td');
-    const envoltura = el('div', 'd-flex align-items-center gap-2');
-    envoltura.append(el('span', 'avatar', iniciales(alumno.nombre)), el('span', 'cell-title', alumno.nombre));
-    tdNombre.appendChild(envoltura);
+    const tdNombre = el('td', 'cell-title', alumno.nombre);
 
     const tdAvance = el('td');
     const barra = el('div', 'd-flex align-items-center gap-2');
@@ -159,16 +156,13 @@ async function pintarEstudiantes() {
     barra.append(progreso, el('span', 'small fw-bold', `${valor}%`));
     tdAvance.appendChild(barra);
 
-    const tdRacha = el('td', 'text-nowrap');
-    tdRacha.innerHTML = '<i class="bi bi-fire text-warning me-1"></i>';
-    tdRacha.append(alumno.racha);
+    const tdRacha = el('td', 'text-nowrap', alumno.racha);
 
     const tdEstado = el('td');
     tdEstado.appendChild(statusBadge(alumno.estado));
 
     const tdBoton = el('td', 'text-end');
-    const boton = el('button', 'btn btn-sm btn-soft text-nowrap', 'Ver estudiante');
-    boton.type = 'button';
+    const boton = botonVer('Ver');
     boton.addEventListener('click', () => abrirFicha(alumno));
     tdBoton.appendChild(boton);
 
@@ -210,7 +204,9 @@ async function abrirFicha(alumno) {
   ficha.materias.forEach((valor, i) => {
     const fila = el('div', 'subject-row');
     const cabecera = el('div', 'd-flex justify-content-between small fw-bold mb-1');
-    cabecera.append(el('span', '', MATERIAS[i]), el('span', '', `${valor}%`));
+    const nombreMateria = el('span');
+    nombreMateria.append(icono(`${ICONO_MATERIA[i]} me-2`), MATERIAS[i]);
+    cabecera.append(nombreMateria, el('span', '', `${valor}%`));
     const progreso = el('div', 'progress');
     const relleno = el('div', `progress-bar ${BAR_CLASS[i]}`);
     relleno.style.width = `${valor}%`;
@@ -219,19 +215,21 @@ async function abrirFicha(alumno) {
     materias.appendChild(fila);
   });
 
-  const lista = (id, items, vacio) => {
+  const lista = (id, items, vacio, iconoDeLista) => {
     const ul = $(id);
     ul.replaceChildren();
     items.forEach(([nombre, valor]) => {
       const li = el('li', 'list-group-item d-flex justify-content-between align-items-center px-0');
       const clase = valor === 'Completada' ? 'status status-success' : valor === 'Sin empezar' ? 'status status-muted' : 'small fw-bold';
-      li.append(el('span', '', nombre), el('span', clase, valor));
+      const titulo = el('span');
+      titulo.append(icono(`${iconoDeLista} text-secondary me-2`), nombre);
+      li.append(titulo, el('span', clase, valor));
       ul.appendChild(li);
     });
     if (!items.length) ul.appendChild(el('li', 'list-group-item px-0 text-secondary small', vacio));
   };
-  lista('#fichaActividades', ficha.actividades, 'No hay actividades activas para el grupo.');
-  lista('#fichaEvaluacion', ficha.evaluacion, 'Todavía no ha respondido el banco de preguntas.');
+  lista('#fichaActividades', ficha.actividades, 'No hay actividades activas para el grupo.', 'bi-controller');
+  lista('#fichaEvaluacion', ficha.evaluacion, 'Todavía no ha respondido el banco de preguntas.', 'bi-patch-question');
 
   Modal.getOrCreateInstance('#modalFicha').show();
 }

@@ -3,7 +3,7 @@
 import json
 
 from app.compartido.base_datos import confirmar
-from app.compartido.fechas import fecha_corta
+from app.compartido.fechas import fecha_dia
 from app.compartido.textos import slug as hacer_slug
 from app.dominios.recursos import servicios as recursos
 from app.excepciones import Conflicto, ErrorDeDatos, NoEncontrado
@@ -146,7 +146,7 @@ def eliminar(slug, usuario_id):
 def historial():
     return [
         {
-            "fecha": fecha_corta(f["fecha"]),
+            "fecha": fecha_dia(f["fecha"]),
             "dia": f["fecha"].date().isoformat(),  # para los filtros Desde / Hasta
             "actividad": f["actividad_nombre"],
             "cambio": f["cambio"],

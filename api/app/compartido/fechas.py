@@ -19,6 +19,11 @@ def fecha_corta(momento):
     return f"{momento.day} {MESES[momento.month - 1]} {momento.year}"
 
 
+def fecha_dia(momento):
+    """Solo el día, sin hora: '12 jun 2026'."""
+    return f"{momento.day} {MESES[momento.month - 1]} {momento.year}"
+
+
 def fecha_larga(dia):
     """date(2026, 9, 15) → '15 de septiembre'."""
     return f"{dia.day} de {MESES_LARGOS[dia.month - 1]}"

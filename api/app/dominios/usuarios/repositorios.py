@@ -73,5 +73,10 @@ def cambiar_estado(usuario_id, estado):
     ejecutar("UPDATE usuarios SET estado = %s WHERE id = %s", (estado, usuario_id), guardar=False)
 
 
+def eliminar(usuario_id):
+    """Los grupos y el historial que lo nombraban quedan sin docente / sin autor (ON DELETE SET NULL)."""
+    ejecutar("DELETE FROM usuarios WHERE id = %s", (usuario_id,), guardar=False)
+
+
 def guardar_password_hash(usuario_id, password_hash, guardar=True):
     ejecutar("UPDATE usuarios SET password_hash = %s WHERE id = %s", (password_hash, usuario_id), guardar=guardar)

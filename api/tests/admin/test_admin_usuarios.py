@@ -74,6 +74,22 @@ def test_no_puede_desactivarse_ni_quitarse_el_rol_a_si_mismo(admin):
     assert admin.put(f"/api/usuarios/{yo['id']}", json=datos).status_code == 400
 
 
+def test_eliminar_un_docente_libera_sus_grupos(admin):
+    nuevo = crear(admin, correo="borrar@ie.edu.co").get_json()
+    resp = admin.delete(f"/api/usuarios/{nuevo['id']}")
+    assert resp.status_code == 200
+    assert resp.get_json()["nombre"] == "Ana Pérez"
+    assert all(u["id"] != nuevo["id"] for u in admin.get("/api/usuarios").get_json())
+    assert admin.delete(f"/api/usuarios/{nuevo['id']}").status_code == 404
+
+
+def test_no_se_eliminan_administradores_ni_la_propia_cuenta(admin):
+    yo = next(u for u in admin.get("/api/usuarios").get_json() if u["correo"] == "cvelez@medellin.gov.co")
+    assert admin.delete(f"/api/usuarios/{yo['id']}").status_code == 400
+    otro = crear_admin_en_la_base(admin, "admin-protegido@medellin.gov.co")
+    assert admin.delete(f"/api/usuarios/{otro['id']}").status_code == 400
+
+
 def test_editar(admin):
     jhon = next(u for u in admin.get("/api/usuarios").get_json() if u["nombre"] == "Jhon")
     datos = {"nombre": "Jhon Jairo", "apellido": "Quintero", "correo": jhon["correo"], "rol": "Docente", "institucion": "IE Altavista"}

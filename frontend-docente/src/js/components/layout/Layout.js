@@ -47,17 +47,18 @@ function Sidebar(vista) {
     </aside>`;
 }
 
+// Solo en celular: en pantalla grande el grupo se ve en la tarjeta del profesor y esta barra no hace falta,
+// pero en celular aquí vive el botón que abre el menú.
 function BarraDelGrupo() {
   const g = grupo();
   return `
-    <header class="group-bar">
+    <header class="group-bar d-lg-none">
       <button class="btn btn-switch d-lg-none ms-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Abrir menú"><i class="bi bi-list"></i></button>
       <span class="group-badge" data-group="grado">${escapeHtml(g.grado)}</span>
       <div>
         <h1 class="group-name" data-group="nombre">${escapeHtml(g.nombre)}</h1>
         <div class="group-meta"><span data-group="estudiantes">${g.estudiantes}</span> estudiantes vinculados</div>
       </div>
-      <button type="button" class="btn btn-switch" data-bs-toggle="modal" data-bs-target="#modalGrupo">Cambiar de grupo <i class="bi bi-chevron-double-right"></i></button>
     </header>`;
 }
 
@@ -78,6 +79,7 @@ function ModalPerfil() {
               <div class="small fw-bold text-uppercase text-secondary mb-1" style="font-size: .7rem; letter-spacing: .08em">Grupo activo</div>
               <div class="fw-bold" data-group="nombre">${escapeHtml(g.nombre)}</div>
               <div class="small text-secondary"><span data-group="estudiantes">${g.estudiantes}</span> estudiantes · código <span data-group="codigo">${escapeHtml(g.codigo)}</span></div>
+              <button type="button" class="btn btn-soft btn-sm w-100 mt-2" id="btnCambiarGrupo">Cambiar de grupo <i class="bi bi-chevron-double-right"></i></button>
             </div>
             <a href="#/mis-datos" class="d-flex justify-content-between align-items-center text-start border rounded-4 p-3 mb-2 text-decoration-none text-body">
               <span><span class="fw-bold d-block">Mis datos</span><span class="small text-secondary">Nombre, correo institucional y documento.</span></span>
@@ -167,6 +169,12 @@ function pintarListaDeGrupos(recargar) {
 // `recargar` vuelve a dibujar la pantalla actual (con el grupo nuevo)
 export function mountLayout({ recargar }) {
   $('#modalGrupo').addEventListener('show.bs.modal', () => pintarListaDeGrupos(recargar));
+
+  // "Cambiar de grupo" vive en la ventana del profesor: se cierra esa y, al terminar, se abre la lista de grupos
+  $('#btnCambiarGrupo').addEventListener('click', () => {
+    $('#modalPerfil').addEventListener('hidden.bs.modal', () => Modal.getOrCreateInstance('#modalGrupo').show(), { once: true });
+    Modal.getOrCreateInstance('#modalPerfil').hide();
+  });
 }
 
 // Escribe los datos del grupo activo en todos los textos marcados con data-group (también en la pantalla abierta)

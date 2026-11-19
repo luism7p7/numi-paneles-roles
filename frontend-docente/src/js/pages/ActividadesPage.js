@@ -3,8 +3,8 @@ import { Modal } from 'bootstrap';
 import { activarActividad, getActividades } from '../api/seguimiento.api.js';
 import { grupo } from '../state/docente.store.js';
 import { statusBadge } from '../utils/badges.js';
-import { BAR_CLASS } from '../utils/constantes.js';
-import { $, $$, el } from '../utils/dom.js';
+import { ESTADO_CLASS } from '../utils/constantes.js';
+import { $, $$, botonVer, el } from '../utils/dom.js';
 import { mostrarError, showToast } from '../utils/toast.js';
 
 export function ActividadesPage() {
@@ -47,14 +47,14 @@ export function ActividadesPage() {
 
         <div class="notice">
           <i class="bi bi-hand-index"></i>
-          <div>Toca una actividad para ver su detalle. Las casillas activan o desactivan cada actividad en el grupo.</div>
+          <div>Toca el ojo <i class="bi bi-eye"></i> para ver el detalle de una actividad. Toca su estado (<strong>Activa</strong> o <strong>Inactiva</strong>) para activarla o desactivarla en el grupo.</div>
         </div>
 
         <div class="card table-card">
           <div class="table-responsive">
             <table class="table table-hover" id="tablaActividades">
               <thead>
-                <tr><th>Actividad</th><th>Materia</th><th>Estado</th><th>Detalle</th><th class="text-end">En el grupo</th></tr>
+                <tr><th>Actividad</th><th>Materia</th><th>Estado</th><th class="text-end">Detalle</th></tr>
               </thead>
               <tbody>
               </tbody>
@@ -102,7 +102,7 @@ function filtrarActividades() {
   const estadoFiltro = $('#estadoAct').value;
   let visibles = 0;
   $$('tbody tr', tabla).forEach((tr) => {
-    const activa = $('input[role="switch"]', tr).checked ? 'Activa' : 'Inactiva';
+    const activa = tr.dataset.activa === 'true' ? 'Activa' : 'Inactiva';
     const coincide =
       tr.textContent.toLowerCase().includes(q) && (!materia || tr.dataset.materia === materia) && (!estadoFiltro || activa === estadoFiltro);
     tr.classList.toggle('d-none', !coincide);
@@ -133,54 +133,53 @@ function abrirDetalle(act) {
   Modal.getOrCreateInstance('#modalActividad').show();
 }
 
+function textoEstado(activa) {
+  return activa ? 'Activa' : 'Inactiva';
+}
+
+// El estado es un botón: tocarlo activa o desactiva la actividad para el grupo
+function botonEstado(act) {
+  const boton = el('button', `status status-toggle ${ESTADO_CLASS[textoEstado(act.activa)]}`, textoEstado(act.activa));
+  boton.type = 'button';
+  boton.title = act.activa ? 'Toca para desactivarla en el grupo' : 'Toca para activarla en el grupo';
+  boton.setAttribute('aria-label', `${act.nombre}: ${textoEstado(act.activa)}. ${boton.title}`);
+  return boton;
+}
+
 function filaActividad(act) {
   const tr = el('tr');
-  Object.assign(tr.dataset, { act: act.id, materia: act.materia });
+  Object.assign(tr.dataset, { act: act.id, materia: act.materia, activa: String(act.activa) });
 
   const tdNombre = el('td');
-  const envoltura = el('div', 'd-flex align-items-center gap-3');
-  const textos = el('div');
   const titulo = el('div', 'cell-title', act.nombre);
   if (act.mas_errores) titulo.append(' ', el('span', 'badge text-bg-danger-subtle text-danger-emphasis ms-1', 'Más errores'));
-  textos.append(titulo, el('div', 'cell-sub', act.descripcion.replace(/\.$/, '')));
-  envoltura.append(el('span', `subject-icon ${BAR_CLASS[act.materia_indice]}`, act.materia[0]), textos);
-  tdNombre.appendChild(envoltura);
+  tdNombre.append(titulo, el('div', 'cell-sub', act.descripcion.replace(/\.$/, '')));
 
   const tdEstado = el('td');
-  tdEstado.dataset.estado = '';
-  tdEstado.appendChild(statusBadge(act.activa ? 'Activa' : 'Inactiva'));
+  let estadoBoton = botonEstado(act);
+  tdEstado.appendChild(estadoBoton);
 
-  const tdDetalle = el('td');
-  const ver = el('button', 'btn btn-sm btn-soft text-nowrap', 'Ver detalle ');
-  ver.type = 'button';
-  ver.appendChild(el('i', 'bi bi-chevron-right'));
+  const tdDetalle = el('td', 'text-end');
+  const ver = botonVer('Ver detalle');
   tdDetalle.appendChild(ver);
+  tr.append(tdNombre, el('td', '', act.materia), tdEstado, tdDetalle);
 
-  const tdInterruptor = el('td', 'text-end');
-  const caja = el('div', 'form-check form-switch d-inline-flex justify-content-end gap-2 mb-0');
-  const interruptor = el('input', 'form-check-input');
-  interruptor.type = 'checkbox';
-  interruptor.setAttribute('role', 'switch');
-  interruptor.setAttribute('aria-label', 'Activa para el grupo');
-  interruptor.checked = act.activa;
-  caja.append(interruptor, el('span', 'small text-nowrap d-none d-md-inline', 'Activa para el grupo'));
-  tdInterruptor.appendChild(caja);
-  tr.append(tdNombre, el('td', '', act.materia), tdEstado, tdDetalle, tdInterruptor);
-
-  interruptor.addEventListener('change', async () => {
-    interruptor.disabled = true;
+  tdEstado.addEventListener('click', async (e) => {
+    if (!e.target.closest('button') || estadoBoton.disabled) return;
+    const activar = !act.activa;
+    estadoBoton.disabled = true;
     try {
-      await activarActividad(act.id, interruptor.checked);
+      await activarActividad(act.id, activar);
     } catch (error) {
-      interruptor.disabled = false;
-      interruptor.checked = !interruptor.checked;
+      estadoBoton.disabled = false;
       return mostrarError(error);
     }
-    interruptor.disabled = false;
-    act.activa = interruptor.checked;
-    tdEstado.replaceChildren(statusBadge(act.activa ? 'Activa' : 'Inactiva'));
+    act.activa = activar;
+    tr.dataset.activa = String(activar);
+    estadoBoton = botonEstado(act);
+    tdEstado.replaceChildren(estadoBoton);
     showToast(
-      act.activa
+      activar
         ? `«${act.nombre}» quedó activa para ${grupo().nombre}.`
         : `«${act.nombre}» ya no aparece en los celulares de ${grupo().nombre}.`,
     );

@@ -128,6 +128,18 @@ def cambiar_estado(usuario_id, nuevo, administrador_id):
     return {"usuario": usuario_json(_buscar(usuario_id)), "password_temporal": temporal}
 
 
+def eliminar(usuario_id, administrador_id):
+    """Borra la cuenta de un docente. Sus grupos quedan sin docente."""
+    actual = _buscar(usuario_id)
+    if usuario_id == administrador_id:
+        raise ErrorDeDatos("No puedes eliminar tu propia cuenta.")
+    if actual["rol"] != "Docente":
+        raise ErrorDeDatos("Las cuentas de administrador no se eliminan desde el panel.")
+    usuarios.eliminar(usuario_id)
+    confirmar()
+    return {"nombre": f"{actual['nombre']} {actual['apellido']}"}
+
+
 def restablecer_password(usuario_id):
     """La contraseña guardada es un hash y no se puede leer: se reemplaza por una temporal nueva."""
     actual = _buscar(usuario_id)

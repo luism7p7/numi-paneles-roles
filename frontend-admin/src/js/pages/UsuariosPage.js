@@ -5,6 +5,7 @@ import {
   cambiarEstado,
   crearUsuario,
   editarUsuario,
+  eliminarUsuario,
   getUsuarios,
   importarUsuarios,
   restablecerPassword,
@@ -13,7 +14,7 @@ import { aplicarFiltros } from '../components/tablas/filtros.js';
 import { mostrarPasswordTemporal } from '../components/usuarios/PasswordTemporal.js';
 import { crearSelectorGrupos } from '../components/usuarios/SelectorGrupos.js';
 import { statusSpan } from '../utils/badges.js';
-import { $, el } from '../utils/dom.js';
+import { $, botonVer, el } from '../utils/dom.js';
 import { fijarTotal, plural } from '../utils/formatters.js';
 import { mostrarError, showFlash, showToast } from '../utils/toast.js';
 
@@ -88,7 +89,7 @@ export function UsuariosPage() {
           <div class="table-responsive">
             <table class="table table-hover" id="tablaUsuarios">
               <thead>
-                <tr><th>Usuario</th><th>Rol</th><th>Institución</th><th>Último acceso</th><th>Estado</th><th class="text-end">Acción</th></tr>
+                <tr><th>Usuario</th><th>Rol</th><th>Institución</th><th>Último acceso</th><th>Estado</th><th class="text-end">Detalle</th></tr>
               </thead>
               <tbody>
               </tbody>
@@ -100,6 +101,56 @@ export function UsuariosPage() {
           </div>
         </div>
       </main>
+
+<div class="modal fade" id="modalDetalle" tabindex="-1" aria-labelledby="detalleNombre" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="d-flex align-items-center gap-3">
+            <span class="avatar avatar-lg" id="detalleIniciales"></span>
+            <div>
+              <p class="small text-secondary mb-0">Detalle del usuario</p>
+              <h2 class="modal-title fs-5" id="detalleNombre"></h2>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <dl class="row detail-list mb-0">
+            <dt class="col-sm-5">Correo institucional</dt><dd class="col-sm-7" id="detalleCorreo"></dd>
+            <dt class="col-sm-5">Rol</dt><dd class="col-sm-7" id="detalleRol"></dd>
+            <dt class="col-sm-5">Institución</dt><dd class="col-sm-7" id="detalleInstitucion"></dd>
+            <dt class="col-sm-5">Grupos a cargo</dt><dd class="col-sm-7" id="detalleGrupos"></dd>
+            <dt class="col-sm-5">Último acceso</dt><dd class="col-sm-7" id="detalleAcceso"></dd>
+            <dt class="col-sm-5">Estado</dt><dd class="col-sm-7 mb-0" id="detalleEstado"></dd>
+          </dl>
+        </div>
+        <div class="modal-footer justify-content-between">
+          <button type="button" class="btn btn-outline-danger" id="btnEliminarUsuario"><i class="bi bi-trash me-1"></i> Eliminar</button>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>
+            <button type="button" class="btn btn-primary" id="btnEditarUsuario"><i class="bi bi-pencil me-1"></i> Editar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<div class="modal fade" id="modalEliminar" tabindex="-1" aria-labelledby="modalEliminarTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-body text-center p-4">
+          <div class="danger-icon"><i class="bi bi-exclamation-lg"></i></div>
+          <h2 class="h5 fw-bold" id="modalEliminarTitulo">¿Eliminar usuario?</h2>
+          <p class="text-secondary mb-0" id="eliminarTexto">La cuenta se borra del todo y no se puede recuperar. Si solo quieres que no entre más, usa Editar y desactívala.</p>
+        </div>
+        <div class="modal-footer justify-content-center border-0 pt-0 pb-4">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="btnConfirmarEliminar">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
 <div class="modal fade" id="modalEditar" tabindex="-1" aria-labelledby="modalEditarTitulo" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -254,6 +305,8 @@ function llenarSelect(select, opciones, conservarPrimera = false) {
 export function mountUsuariosPage({ query }) {
   const tablaUsuarios = $('#tablaUsuarios');
   const tbody = $('tbody', tablaUsuarios);
+  const modalDetalle = new Modal('#modalDetalle');
+  const modalEliminar = new Modal('#modalEliminar');
   const modalEditar = new Modal('#modalEditar');
   const modalConfirmar = new Modal('#modalConfirmarEstado');
   const modalCrearEl = $('#modalCrear');
@@ -321,6 +374,27 @@ export function mountUsuariosPage({ query }) {
     modalEditar.show();
   };
 
+  // Detalle de la cuenta; desde aquí se pasa a Editar o a Eliminar (solo docentes)
+  const abrirDetalle = (u) => {
+    actual = u;
+    $('#detalleIniciales').textContent = u.iniciales;
+    $('#detalleNombre').textContent = u.nombre_completo;
+    $('#detalleCorreo').textContent = u.correo;
+    $('#detalleRol').textContent = u.rol;
+    $('#detalleInstitucion').textContent = u.institucion;
+    $('#detalleGrupos').textContent = u.grupos.length ? u.grupos.map((g) => g.corto).join(' · ') : 'Ninguno';
+    $('#detalleAcceso').textContent = u.ultimo_acceso;
+    $('#detalleEstado').replaceChildren(statusSpan(u.estado));
+    $('#btnEliminarUsuario').classList.toggle('d-none', u.rol !== 'Docente');
+    modalDetalle.show();
+  };
+
+  // Cierra la ventana actual y, cuando termina de cerrarse, abre la siguiente
+  const pasarA = (hacia) => {
+    $('#modalDetalle').addEventListener('hidden.bs.modal', () => hacia.show(), { once: true });
+    modalDetalle.hide();
+  };
+
   const filaUsuario = (u) => {
     const tr = el('tr');
     Object.assign(tr.dataset, { user: u.id, rol: u.rol, institucion: u.institucion, estado: u.estado });
@@ -336,10 +410,9 @@ export function mountUsuariosPage({ query }) {
     tdEstado.dataset.field = 'estado';
     tdEstado.appendChild(statusSpan(u.estado));
     const tdAccion = el('td', 'text-end');
-    const editar = el('button', 'btn btn-sm btn-soft', 'Editar');
-    editar.type = 'button';
-    editar.addEventListener('click', () => abrirEditar(u));
-    tdAccion.appendChild(editar);
+    const ver = botonVer('Ver detalle');
+    ver.addEventListener('click', () => abrirDetalle(u));
+    tdAccion.appendChild(ver);
     // Institución y, debajo, los grupos que maneja el docente
     const tdInstitucion = el('td');
     tdInstitucion.append(el('div', '', u.institucion));
@@ -364,6 +437,32 @@ export function mountUsuariosPage({ query }) {
     fijarTotal($('[data-visible]', tablaUsuarios.closest('.card')), datos.length, 'usuarios');
     aplicarFiltros('#tablaUsuarios', reiniciar);
   };
+
+  $('#btnEditarUsuario').addEventListener('click', () => {
+    pasarA({ show: () => abrirEditar(actual) });
+  });
+
+  $('#btnEliminarUsuario').addEventListener('click', () => {
+    $('#modalEliminarTitulo').textContent = `¿Eliminar a ${actual.nombre_completo}?`;
+    pasarA(modalEliminar);
+  });
+
+  $('#btnConfirmarEliminar').addEventListener('click', async () => {
+    const boton = $('#btnConfirmarEliminar');
+    boton.disabled = true;
+    let eliminado;
+    try {
+      eliminado = await eliminarUsuario(actual.id);
+    } catch (error) {
+      modalEliminar.hide();
+      return mostrarError(error);
+    } finally {
+      boton.disabled = false;
+    }
+    modalEliminar.hide();
+    showFlash(`Se eliminó la cuenta de ${eliminado.nombre}.`);
+    cargar(false);
+  });
 
   $('#btnToggleEstado').addEventListener('click', () => {
     const activar = actual.estado !== 'Activo';

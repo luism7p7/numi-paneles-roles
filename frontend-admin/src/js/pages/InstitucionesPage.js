@@ -1,7 +1,7 @@
 import { getInstitucion, getInstituciones } from '../api/instituciones.api.js';
 import { aplicarFiltros } from '../components/tablas/filtros.js';
 import { statusSpan } from '../utils/badges.js';
-import { $, el } from '../utils/dom.js';
+import { $, botonVer, el } from '../utils/dom.js';
 import { fijarTotal } from '../utils/formatters.js';
 import { mostrarError, showFlash } from '../utils/toast.js';
 
@@ -63,7 +63,7 @@ export function InstitucionesPage() {
 
         <div class="notice">
           <i class="bi bi-hand-index"></i>
-          <div>Toca <strong>Ver detalle</strong> en cada fila para abrir la información completa de esa institución.</div>
+          <div>Toca el ojo <i class="bi bi-eye"></i> de cada fila para abrir la información completa de esa institución.</div>
         </div>
 
         <div class="card table-card">
@@ -153,8 +153,7 @@ export async function mountInstitucionesPage({ query }) {
     const tdEstado = el('td');
     tdEstado.appendChild(statusSpan(i.estado));
     const tdDetalle = el('td', 'text-end');
-    const boton = el('button', 'btn btn-sm btn-soft', 'Ver detalle');
-    boton.type = 'button';
+    const boton = botonVer('Ver detalle');
     Object.assign(boton.dataset, { bsToggle: 'modal', bsTarget: '#modalInstitucion', inst: i.id });
     tdDetalle.appendChild(boton);
     tr.append(el('td', 'cell-title', i.nombre), el('td', '', i.comuna), el('td', '', i.sedes), el('td', '', i.estudiantes), tdEstado, tdDetalle);

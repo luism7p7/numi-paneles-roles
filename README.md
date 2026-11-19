@@ -179,7 +179,7 @@ Todas empiezan por `/api/v1` y piden `Authorization: Bearer <token>`, salvo el a
 | Historial | `GET /admin/historial` |
 | Recursos | `GET /admin/recursos`, `POST /admin/recursos` (subir PNG/JPG/MP3/MP4) |
 | Instituciones | `GET/POST /admin/instituciones`, `GET /admin/instituciones/<id>`, `POST /admin/instituciones/<id>/grupos` |
-| Usuarios | `GET/POST /admin/usuarios`, `PUT /admin/usuarios/<id>`, `PATCH /admin/usuarios/<id>/estado`, `POST /admin/usuarios/<id>/password-temporal`, `POST /admin/usuarios/importar` |
+| Usuarios | `GET/POST /admin/usuarios`, `PUT /admin/usuarios/<id>`, `DELETE /admin/usuarios/<id>`, `PATCH /admin/usuarios/<id>/estado`, `POST /admin/usuarios/<id>/password-temporal`, `POST /admin/usuarios/importar` |
 | Monitoreo técnico | `GET /admin/monitoreo`, `POST /admin/informes`, `GET /admin/informes/<id>/descargar` |
 
 **Docente** (`/docente/...`; el grupo con el que trabaja viaja en la cabecera `X-Grupo-Id`)

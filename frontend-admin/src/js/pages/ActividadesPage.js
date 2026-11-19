@@ -1,7 +1,7 @@
 import { getActividades } from '../api/actividades.api.js';
 import { aplicarFiltros } from '../components/tablas/filtros.js';
 import { statusSpan } from '../utils/badges.js';
-import { $, el } from '../utils/dom.js';
+import { $, botonVer, el } from '../utils/dom.js';
 import { filaVacia } from '../utils/formatters.js';
 import { mostrarError, showFlash } from '../utils/toast.js';
 
@@ -79,7 +79,7 @@ export function ActividadesPage() {
 
         <div class="notice">
           <i class="bi bi-phone"></i>
-          <div>Los cambios llegan al celular del niño en su <strong>próxima sincronización</strong>, no de inmediato. Toca <strong>Ver detalle</strong> en cada fila para abrir la información completa de esa actividad.</div>
+          <div>Los cambios llegan al celular del niño en su <strong>próxima sincronización</strong>, no de inmediato. Toca el ojo <i class="bi bi-eye"></i> de cada fila para abrir la información completa de esa actividad.</div>
         </div>
 
         <!-- Tabla -->
@@ -91,6 +91,7 @@ export function ActividadesPage() {
                   <th>Actividad</th>
                   <th>Materia</th>
                   <th>Grado</th>
+                  <th>Tipo</th>
                   <th>Estado</th>
                   <th class="text-end">Detalle</th>
                 </tr>
@@ -131,18 +132,16 @@ export async function mountActividadesPage({ query }) {
   datos.forEach((a) => {
     const tr = el('tr');
     Object.assign(tr.dataset, { id: a.id, materia: a.materia, grado: a.grado, estado: a.estado });
-    const tdNombre = el('td');
-    tdNombre.append(el('div', 'cell-title', a.nombre), el('div', 'cell-sub', a.tipo));
     const tdEstado = el('td');
     tdEstado.appendChild(statusSpan(a.estado));
     const tdDetalle = el('td', 'text-end');
-    const ver = el('a', 'btn btn-sm btn-soft', 'Ver detalle');
+    const ver = botonVer('Ver detalle', 'a');
     ver.href = `#/actividad-detalle?id=${encodeURIComponent(a.id)}`;
     tdDetalle.appendChild(ver);
-    tr.append(tdNombre, el('td', '', a.materia), el('td', '', a.grado), tdEstado, tdDetalle);
+    tr.append(el('td', 'cell-title', a.nombre), el('td', '', a.materia), el('td', '', a.grado), el('td', '', a.tipo), tdEstado, tdDetalle);
     tbody.appendChild(tr);
   });
-  if (!datos.length) filaVacia(tbody, 5, 'Todavía no hay actividades. Crea la primera con «Nueva actividad».');
+  if (!datos.length) filaVacia(tbody, 6, 'Todavía no hay actividades. Crea la primera con «Nueva actividad».');
   $('[data-total]').textContent = datos.length;
   $('[data-count]').textContent = datos.length;
   aplicarFiltros('#tablaActividades');

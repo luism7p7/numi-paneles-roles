@@ -32,6 +32,12 @@ def editar(usuario_id, id_usuario):
     return exito(servicios.editar(id_usuario, datos), "Cuenta actualizada.")
 
 
+@usuarios_bp.delete("/<int:id_usuario>")
+@requiere_admin
+def eliminar(usuario_id, id_usuario):
+    return exito(servicios.eliminar(id_usuario, usuario_id), "Cuenta eliminada.")
+
+
 @usuarios_bp.patch("/<int:id_usuario>/estado")
 @requiere_admin
 def cambiar_estado(usuario_id, id_usuario):

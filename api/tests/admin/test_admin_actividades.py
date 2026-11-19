@@ -44,6 +44,7 @@ def test_publicar_actividad_nueva(admin):
     assert len(detalle["recursos"]) == 2
     historial = admin.get("/api/historial").get_json()
     assert historial[0]["actividad"] == "El ciclo del agua" and historial[0]["tipo"] == "Publicada"
+    assert ":" not in historial[0]["fecha"]  # solo el día, sin hora
 
 
 def test_no_permite_nombres_repetidos(admin):

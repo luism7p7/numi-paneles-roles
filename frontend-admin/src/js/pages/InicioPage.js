@@ -21,7 +21,6 @@ export function InicioPage() {
             <h1 class="page-title">Panel administrativo</h1>
             <p class="page-subtitle">Resumen general de la red de instituciones que usan Numi.</p>
           </div>
-          <a href="#/constructor" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Nueva actividad</a>
         </div>
 
         <!-- Indicadores -->
@@ -84,7 +83,6 @@ export function InicioPage() {
           </div>
           <div class="card-body">
             <div class="row g-3">
-              <div class="col-6 col-md-4 col-xl"><a href="#/constructor" class="quick-link"><i class="bi bi-plus-square"></i> Nueva actividad</a></div>
               <div class="col-6 col-md-4 col-xl"><a href="#/recursos" class="quick-link"><i class="bi bi-cloud-arrow-up"></i> Subir recursos</a></div>
               <div class="col-6 col-md-4 col-xl"><a href="#/institucion-nueva" class="quick-link"><i class="bi bi-building-add"></i> Crear institución</a></div>
               <div class="col-6 col-md-6 col-xl"><a href="#/usuarios?crear=1" class="quick-link"><i class="bi bi-person-plus"></i> Crear usuario</a></div>
