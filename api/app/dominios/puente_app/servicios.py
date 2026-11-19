@@ -54,19 +54,27 @@ def actividades(uid):
     grupo = grupos.obtener(est["grupo_id"])
     lista = []
     for a in calculos.actividades_del_grupo(grupo):
-        if not a["activa"]:
-            continue
-        recursos = repo.recursos_de_la_actividad(a["id"])
-        lista.append({
+        activa = bool(a["activa"])
+        base = {
             "id": a["slug"],
             "nombre": a["nombre"],  # el mismo texto con que la app guarda el progreso
             "materia": a["materia"],
             "tipo": a["tipo"],
             # en_app: ya tiene pantalla propia en la app. Si no, se juega con la plantilla de su tipo
             "en_app": bool(a["en_app"]),
-            "contenido": json.loads(a["contenido"]) if a["contenido"] else None,
+            "activa": activa,
             # La app vuelve a descargar la actividad solo si cambió esta fecha
             "actualizada": a["actualizada_en"].isoformat(),
+        }
+        if not activa:
+            # El docente la desactivó para este grupo: la app la oculta y no la cuenta en el avance.
+            # Va marcada, sin contenido ni archivos, para que la app sepa cuál ocultar.
+            lista.append(base | {"contenido": None, "recursos": []})
+            continue
+        recursos = repo.recursos_de_la_actividad(a["id"])
+        lista.append({
+            **base,
+            "contenido": json.loads(a["contenido"]) if a["contenido"] else None,
             "recursos": [r | {"descargable": bool(r["descargable"])} for r in recursos],
         })
     return {"grado": grupo["grado"], "ia_activada": bool(grupo["ia_activada"]), "actividades": lista}

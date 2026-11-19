@@ -69,6 +69,29 @@ def test_actividades_para_el_celular(app_numi):
     assert app_numi.get("/api/app/v1/actividades?uid=desconocido").status_code == 404
 
 
+def test_la_actividad_desactivada_llega_marcada_para_que_la_app_la_oculte(docente, app_numi):
+    """La app oculta lo que el docente desactiva: el panel debe avisarle cuál, con `activa: false`."""
+    codigo = docente.get("/api/gestion").get_json()["codigo"]  # el vigente de 3° A (otra prueba pudo renovarlo)
+    unido = app_numi.post("/api/app/v1/unirse", json={"uid": "nino-oculta", "nombre": "Ana", "codigo": codigo})
+    assert unido.status_code == 200, unido.get_json()
+
+    def actividades():
+        return {a["id"]: a for a in app_numi.get("/api/app/v1/actividades?uid=nino-oculta").get_json()["actividades"]}
+
+    antes = actividades()
+    assert antes["los-numeros"]["activa"] is True and antes["los-numeros"]["recursos"] is not None
+
+    assert docente.patch("/api/actividades/los-numeros", json={"activa": False}).status_code == 200
+    despues = actividades()
+    assert despues["los-numeros"]["activa"] is False  # sigue en la lista, marcada
+    assert despues["los-numeros"]["contenido"] is None and despues["los-numeros"]["recursos"] == []
+    assert despues["los-numeros"]["en_app"] is True  # la app necesita saberlo para restarla del avance
+    assert set(despues) == set(antes)  # no desaparece ninguna otra
+
+    assert docente.patch("/api/actividades/los-numeros", json={"activa": True}).status_code == 200
+    assert actividades()["los-numeros"]["activa"] is True
+
+
 def test_subir_progreso_gana_el_mayor_avance(app_numi):
     def subir(porcentaje, intentos):
         return app_numi.put("/api/app/v1/progreso", json={
